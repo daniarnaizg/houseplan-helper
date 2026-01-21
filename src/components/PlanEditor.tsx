@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchContentRef } from 'react-zoom-pan-pinch';
-import { Ruler, MousePointer2, Calculator, Trash2, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
-import Draggable from 'react-draggable';
+import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import Draggable, { DraggableEvent, DraggableData } from 'react-draggable';
 import { toPng } from 'html-to-image';
 import { cn } from '@/lib/utils';
 import { Mode, Line, Polygon, FurnitureItem, Point, ProjectData } from './types';
@@ -117,8 +117,129 @@ const SidebarGroup = ({
     );
 };
 
+const MeasurementsList = React.memo(({ 
+    items, 
+    onUpdateName, 
+    onUpdateColor, 
+    onDelete 
+}: { 
+    items: Line[], 
+    onUpdateName: (id: string, name: string) => void, 
+    onUpdateColor: (id: string, color: string) => void, 
+    onDelete: (id: string) => void 
+}) => {
+    return (
+        <>
+            {items.map(item => (
+                <div key={item.id} className="bg-gray-50 p-2 rounded text-xs border border-gray-100">
+                    <div className="flex items-center justify-between mb-1">
+                        <input 
+                            type="text" value={item.name} onChange={(e) => onUpdateName(item.id, e.target.value)}
+                            className="bg-transparent font-medium text-gray-900 focus:outline-none focus:border-b border-blue-500 w-full mr-2"
+                        />
+                        <button onClick={() => onDelete(item.id)} className="text-gray-400 hover:text-red-500"><X size={14}/></button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div className="relative w-4 h-4 rounded-full overflow-hidden border border-gray-200">
+                            <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 cursor-pointer border-none" />
+                        </div>
+                        <span className="text-gray-500 font-mono">
+                            {item.length?.toFixed(2)} {item.unit}
+                        </span>
+                    </div>
+                </div>
+            ))}
+        </>
+    );
+});
+MeasurementsList.displayName = 'MeasurementsList';
+
+const AreasList = React.memo(({ 
+    items, 
+    onUpdateName, 
+    onUpdateColor, 
+    onDelete 
+}: { 
+    items: Polygon[], 
+    onUpdateName: (id: string, name: string) => void, 
+    onUpdateColor: (id: string, color: string) => void, 
+    onDelete: (id: string) => void 
+}) => {
+    return (
+        <>
+            {items.map(item => (
+                <div key={item.id} className="bg-gray-50 p-2 rounded text-xs border border-gray-100">
+                    <div className="flex items-center justify-between mb-1">
+                        <input 
+                            type="text" value={item.name} onChange={(e) => onUpdateName(item.id, e.target.value)}
+                            className="bg-transparent font-medium text-gray-900 focus:outline-none focus:border-b border-blue-500 w-full mr-2"
+                        />
+                        <button onClick={() => onDelete(item.id)} className="text-gray-400 hover:text-red-500"><X size={14}/></button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <div className="relative w-4 h-4 rounded-full overflow-hidden border border-gray-200">
+                            <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 cursor-pointer border-none" />
+                        </div>
+                        <span className="text-gray-500 font-mono">
+                            {item.area?.toFixed(2)} {item.unit}
+                        </span>
+                    </div>
+                </div>
+            ))}
+        </>
+    );
+});
+AreasList.displayName = 'AreasList';
+
+const FurnitureList = React.memo(({ 
+    items, 
+    selectedId,
+    onSelect,
+    onUpdateName, 
+    onUpdateDim,
+    onUpdateColor, 
+    onDelete 
+}: { 
+    items: FurnitureItem[], 
+    selectedId: string | null,
+    onSelect: (id: string) => void,
+    onUpdateName: (id: string, name: string) => void, 
+    onUpdateDim: (id: string, dim: 'width' | 'depth', value: number) => void,
+    onUpdateColor: (id: string, color: string) => void, 
+    onDelete: (id: string) => void 
+}) => {
+    return (
+        <>
+            {items.map(item => (
+                <div key={item.id} className={cn("bg-gray-50 p-2 rounded text-xs border transition-colors", selectedId === item.id ? "border-blue-500 bg-blue-50" : "border-gray-100")} onClick={() => onSelect(item.id)}>
+                    <div className="flex items-center justify-between mb-1">
+                        <input 
+                            type="text" value={item.name} onChange={(e) => onUpdateName(item.id, e.target.value)}
+                            className="bg-transparent font-medium text-gray-900 focus:outline-none focus:border-b border-blue-500 w-24"
+                        />
+                        <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-gray-400 hover:text-red-500"><X size={14}/></button>
+                    </div>
+                    <div className="flex justify-between items-center mt-2">
+                        <div className="flex gap-2 items-center text-gray-500">
+                            <span>W:</span>
+                            <input type="number" step="0.1" value={item.width} onChange={(e) => onUpdateDim(item.id, 'width', parseFloat(e.target.value))} className="w-10 bg-white border rounded px-1" />
+                            <span>D:</span>
+                            <input type="number" step="0.1" value={item.depth} onChange={(e) => onUpdateDim(item.id, 'depth', parseFloat(e.target.value))} className="w-10 bg-white border rounded px-1" />
+                        </div>
+                        <div className="relative w-4 h-4 rounded-full overflow-hidden border border-gray-200 shrink-0">
+                            <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 cursor-pointer border-none" />
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </>
+    );
+});
+FurnitureList.displayName = 'FurnitureList';
+
 export function PlanEditor({ file, onReset }: PlanEditorProps) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [imgDimensions, setImgDimensions] = useState<{width: number, height: number} | null>(null);
   const [mode, setMode] = useState<Mode>('view');
   const [scale, setScale] = useState<number | null>(null); 
   const [unit, setUnit] = useState<string>('m');
@@ -248,7 +369,9 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
       }
   };
 
-  const handleAddFurniture = (item: typeof FURNITURE_CATALOG[0]) => {
+  const handleAddFurniture = useCallback((item: typeof FURNITURE_CATALOG[0]) => {
+      // Note: We still need 'scale' from closure, but that changes rarely compared to mouse movement.
+      // If we strictly wanted to avoid 'scale' dep, we'd need a ref, but this is acceptable as adding furniture is a discrete action.
       if (!scale) {
           alert("Please calibrate the plan first!");
           return;
@@ -270,15 +393,15 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
       setFurniture(prev => [...prev, newItem]);
       setSelectedFurnitureId(newItem.id);
       setMode('view'); 
-  };
+  }, [scale]);
 
-  const updateFurniturePos = (id: string, x: number, y: number) => {
+  const updateFurniturePos = useCallback((id: string, x: number, y: number) => {
       setFurniture(prev => prev.map(f => f.id === id ? { ...f, x, y } : f));
-  };
+  }, []);
   
-  const updateFurnitureDim = (id: string, dim: 'width' | 'depth', value: number) => {
+  const updateFurnitureDim = useCallback((id: string, dim: 'width' | 'depth', value: number) => {
       setFurniture(prev => prev.map(f => f.id === id ? { ...f, [dim]: value } : f));
-  };
+  }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (mode === 'view') return;
@@ -413,21 +536,23 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
     }
   };
 
-  const updateItemName = (id: string, name: string) => {
-      setLines(lines.map(l => l.id === id ? { ...l, name } : l));
-      setPolygons(polygons.map(p => p.id === id ? { ...p, name } : p));
-      setFurniture(furniture.map(f => f.id === id ? { ...f, name } : f));
-  };
-  const updateItemColor = (id: string, color: string) => {
-      setLines(lines.map(l => l.id === id ? { ...l, color } : l));
-      setPolygons(polygons.map(p => p.id === id ? { ...p, color } : p));
-      setFurniture(furniture.map(f => f.id === id ? { ...f, color } : f));
-  };
-  const deleteItem = (id: string) => {
-      setLines(lines.filter(l => l.id !== id));
-      setPolygons(polygons.filter(p => p.id !== id));
-      setFurniture(furniture.filter(f => f.id !== id));
-  };
+  const updateItemName = useCallback((id: string, name: string) => {
+      setLines(prev => prev.map(l => l.id === id ? { ...l, name } : l));
+      setPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p));
+      setFurniture(prev => prev.map(f => f.id === id ? { ...f, name } : f));
+  }, []);
+
+  const updateItemColor = useCallback((id: string, color: string) => {
+      setLines(prev => prev.map(l => l.id === id ? { ...l, color } : l));
+      setPolygons(prev => prev.map(p => p.id === id ? { ...p, color } : p));
+      setFurniture(prev => prev.map(f => f.id === id ? { ...f, color } : f));
+  }, []);
+
+  const deleteItem = useCallback((id: string) => {
+      setLines(prev => prev.filter(l => l.id !== id));
+      setPolygons(prev => prev.filter(p => p.id !== id));
+      setFurniture(prev => prev.filter(f => f.id !== id));
+  }, []);
 
   const renderTShapes = (start: Point, end: Point, color: string) => {
     const dx = end.x - start.x;
@@ -450,25 +575,24 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
       <input type="file" ref={fileInputRef} onChange={handleImportFile} accept=".json" className="hidden" />
 
       {/* Magnifier Portal */}
-      {showMagnifier && magnifierPos && imageSrc && (
-          <div 
-            className="fixed z-50 pointer-events-none rounded-full border-4 border-white shadow-xl overflow-hidden bg-white"
-            style={{
-                left: magnifierPos.x + 20,
-                top: magnifierPos.y + 20,
-                width: 150,
-                height: 150,
-                backgroundImage: `url(${imageSrc})`,
-                backgroundRepeat: 'no-repeat',
-                backgroundSize: `${(imgRef.current?.width || 0) * 2}px ${(imgRef.current?.height || 0) * 2}px`,
-                backgroundPosition: `${magnifierPos.bgX}px ${magnifierPos.bgY}px`
-            }}
-          >
-              <div className="absolute top-1/2 left-1/2 w-2 h-0.5 bg-red-500/50 -translate-x-1/2 -translate-y-1/2"></div>
-              <div className="absolute top-1/2 left-1/2 w-0.5 h-2 bg-red-500/50 -translate-x-1/2 -translate-y-1/2"></div>
-          </div>
-      )}
-
+                  {showMagnifier && magnifierPos && imageSrc && (
+                <div 
+                  className="fixed z-50 pointer-events-none rounded-full border-4 border-white shadow-xl overflow-hidden bg-white"
+                  style={{
+                      left: magnifierPos.x + 20,
+                      top: magnifierPos.y + 20,
+                      width: 150,
+                      height: 150,
+                      backgroundImage: `url(${imageSrc})`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundSize: `${(imgDimensions?.width || 0) * 2}px ${(imgDimensions?.height || 0) * 2}px`,
+                      backgroundPosition: `${magnifierPos.bgX}px ${magnifierPos.bgY}px`
+                  }}
+                >
+                    <div className="absolute top-1/2 left-1/2 w-2 h-0.5 bg-red-500/50 -translate-x-1/2 -translate-y-1/2"></div>
+                    <div className="absolute top-1/2 left-1/2 w-0.5 h-2 bg-red-500/50 -translate-x-1/2 -translate-y-1/2"></div>
+                </div>
+            )}
       {/* Sidebar */}
       <aside className="w-80 bg-white border-r border-gray-200 flex flex-col shadow-xl z-10 h-screen">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
@@ -543,7 +667,7 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
                 </button>
             </div>
 
-            {scale && (
+            {scale !== null && (
                 <>
                     {/* Furniture Tab */}
                     <div className="space-y-2">
@@ -562,74 +686,35 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
                     <div className="space-y-3 pt-2">
                         {/* Measurements */}
                         <SidebarGroup title="Measurements" count={lines.length} isOpen={isMeasurementsOpen} onToggle={() => setIsMeasurementsOpen(!isMeasurementsOpen)}>
-                            {lines.map(item => (
-                                <div key={item.id} className="bg-gray-50 p-2 rounded text-xs border border-gray-100">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <input 
-                                            type="text" value={item.name} onChange={(e) => updateItemName(item.id, e.target.value)}
-                                            className="bg-transparent font-medium text-gray-900 focus:outline-none focus:border-b border-blue-500 w-full mr-2"
-                                        />
-                                        <button onClick={() => deleteItem(item.id)} className="text-gray-400 hover:text-red-500"><X size={14}/></button>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="relative w-4 h-4 rounded-full overflow-hidden border border-gray-200">
-                                            <input type="color" value={item.color} onChange={(e) => updateItemColor(item.id, e.target.value)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 cursor-pointer border-none" />
-                                        </div>
-                                        <span className="text-gray-500 font-mono">
-                                            {item.length?.toFixed(2)} {item.unit}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
+                            <MeasurementsList 
+                                items={lines} 
+                                onUpdateName={updateItemName} 
+                                onUpdateColor={updateItemColor} 
+                                onDelete={deleteItem} 
+                            />
                         </SidebarGroup>
 
                         {/* Areas */}
                         <SidebarGroup title="Areas" count={polygons.length} isOpen={isAreasOpen} onToggle={() => setIsAreasOpen(!isAreasOpen)}>
-                            {polygons.map(item => (
-                                <div key={item.id} className="bg-gray-50 p-2 rounded text-xs border border-gray-100">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <input 
-                                            type="text" value={item.name} onChange={(e) => updateItemName(item.id, e.target.value)}
-                                            className="bg-transparent font-medium text-gray-900 focus:outline-none focus:border-b border-blue-500 w-full mr-2"
-                                        />
-                                        <button onClick={() => deleteItem(item.id)} className="text-gray-400 hover:text-red-500"><X size={14}/></button>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <div className="relative w-4 h-4 rounded-full overflow-hidden border border-gray-200">
-                                            <input type="color" value={item.color} onChange={(e) => updateItemColor(item.id, e.target.value)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 cursor-pointer border-none" />
-                                        </div>
-                                        <span className="text-gray-500 font-mono">
-                                            {item.area?.toFixed(2)} {item.unit}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))}
+                            <AreasList 
+                                items={polygons} 
+                                onUpdateName={updateItemName} 
+                                onUpdateColor={updateItemColor} 
+                                onDelete={deleteItem} 
+                            />
                         </SidebarGroup>
 
                         {/* Furniture */}
                         <SidebarGroup title="Furniture" count={furniture.length} isOpen={isFurnitureOpen} onToggle={() => setIsFurnitureOpen(!isFurnitureOpen)}>
-                            {furniture.map(item => (
-                                <div key={item.id} className={cn("bg-gray-50 p-2 rounded text-xs border transition-colors", selectedFurnitureId === item.id ? "border-blue-500 bg-blue-50" : "border-gray-100")} onClick={() => setSelectedFurnitureId(item.id)}>
-                                    <div className="flex items-center justify-between mb-1">
-                                        <input 
-                                            type="text" value={item.name} onChange={(e) => updateItemName(item.id, e.target.value)}
-                                            className="bg-transparent font-medium text-gray-900 focus:outline-none focus:border-b border-blue-500 w-24"
-                                        />
-                                        <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="text-gray-400 hover:text-red-500"><X size={14}/></button>
-                                    </div>
-                                    <div className="flex justify-between items-center mt-2">
-                                        <div className="flex gap-2 items-center text-gray-500">
-                                            <span>W:</span>
-                                            <input type="number" step="0.1" value={item.width} onChange={(e) => updateFurnitureDim(item.id, 'width', parseFloat(e.target.value))} className="w-10 bg-white border rounded px-1" />
-                                            <span>D:</span>
-                                            <input type="number" step="0.1" value={item.depth} onChange={(e) => updateFurnitureDim(item.id, 'depth', parseFloat(e.target.value))} className="w-10 bg-white border rounded px-1" />
-                                        </div>
-                                        <div className="relative w-4 h-4 rounded-full overflow-hidden border border-gray-200 shrink-0">
-                                            <input type="color" value={item.color} onChange={(e) => updateItemColor(item.id, e.target.value)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 cursor-pointer border-none" />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                            <FurnitureList 
+                                items={furniture} 
+                                selectedId={selectedFurnitureId}
+                                onSelect={setSelectedFurnitureId}
+                                onUpdateName={updateItemName} 
+                                onUpdateDim={updateFurnitureDim}
+                                onUpdateColor={updateItemColor} 
+                                onDelete={deleteItem} 
+                            />
                         </SidebarGroup>
                         
                         {(lines.length === 0 && polygons.length === 0 && furniture.length === 0) && (
@@ -648,7 +733,7 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
             <div className="flex flex-col gap-2 bg-white/90 backdrop-blur shadow-lg rounded-lg p-2 border border-gray-200">
                 <button onClick={() => transformComponentRef.current?.zoomIn()} className="p-2 hover:bg-gray-100 rounded text-gray-700"><ZoomIn size={20} /></button>
                 <button onClick={() => transformComponentRef.current?.zoomOut()} className="p-2 hover:bg-gray-100 rounded text-gray-700"><ZoomOut size={20} /></button>
-                <button onClick={() => transformComponentRef.current?.resetTransform()} className="p-2 hover:bg-gray-100 rounded text-gray-700"><RotateCcw size={20} /></button>
+                <button onClick={handleRotate} className="p-2 hover:bg-gray-100 rounded text-gray-700" title="Rotate Image"><RotateCcw size={20} /></button>
             </div>
             
             <div className="flex flex-col gap-2 bg-white/90 backdrop-blur shadow-lg rounded-lg p-2 border border-gray-200">
@@ -695,6 +780,7 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
                             alt="House Plan" 
                             className="max-w-none block select-none"
                             onDragStart={(e) => e.preventDefault()}
+                            onLoad={(e) => setImgDimensions({ width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight })}
                         />
                         
                         {/* SVG Layer */}
