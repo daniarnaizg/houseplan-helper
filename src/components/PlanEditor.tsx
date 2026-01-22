@@ -8,7 +8,8 @@ import { Mode, Line, Polygon, FurnitureItem, Point, ProjectData } from './types'
 import { rotateImage, calculatePolygonArea } from '@/lib/imageUtils';
 
 interface PlanEditorProps {
-  file: File;
+  file?: File;
+  initialImageSrc?: string;
   onReset: () => void;
 }
 
@@ -237,8 +238,8 @@ const FurnitureList = React.memo(({
 });
 FurnitureList.displayName = 'FurnitureList';
 
-export function PlanEditor({ file, onReset }: PlanEditorProps) {
-  const [imageSrc, setImageSrc] = useState<string | null>(null);
+export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) {
+  const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc || null);
   const [imgDimensions, setImgDimensions] = useState<{width: number, height: number} | null>(null);
   const [mode, setMode] = useState<Mode>('view');
   const [scale, setScale] = useState<number | null>(null); 
@@ -276,10 +277,18 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setImageSrc(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    if (initialImageSrc) {
+        setImageSrc(initialImageSrc);
+        return;
+    }
+    
+    if (file) {
+        const url = URL.createObjectURL(file);
+        setImageSrc(url);
+        return () => URL.revokeObjectURL(url);
+    }
+  }, [file, initialImageSrc]);
+
 
   const getRelativeCoordinates = (e: React.MouseEvent | React.TouchEvent, element: HTMLElement) => {
     const rect = element.getBoundingClientRect();
@@ -758,6 +767,9 @@ export function PlanEditor({ file, onReset }: PlanEditorProps) {
         {imageSrc && (
              <TransformWrapper
                 ref={transformComponentRef}
+                minScale={0.1}
+                limitToBounds={false}
+                centerOnInit={true}
                 disabled={mode !== 'view'} 
                 wheel={{ disabled: mode !== 'view' }} 
                 panning={{ disabled: mode !== 'view' }}

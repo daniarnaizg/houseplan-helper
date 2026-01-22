@@ -18,7 +18,7 @@ export function FileUpload({ onFileSelect }: FileUploadProps) {
     onDrop,
     accept: {
       'image/*': ['.png', '.jpg', '.jpeg', '.webp'],
-      // 'application/pdf': ['.pdf'] // Future support
+      'application/pdf': ['.pdf'] 
     },
     maxFiles: 1,
   });
@@ -59,7 +59,7 @@ export function FileUpload({ onFileSelect }: FileUploadProps) {
                 {isDragActive ? "Drop the file here" : "Click or drag to upload"}
               </p>
               <p className="text-xs text-gray-500">
-                Supports JPG, PNG, WEBP
+                Supports PDF, JPG, PNG, WEBP
               </p>
             </div>
           </div>
