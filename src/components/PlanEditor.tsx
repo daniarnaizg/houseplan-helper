@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchContentRef } from 'react-zoom-pan-pinch';
-import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw } from 'lucide-react';
+import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw, Eye, EyeOff } from 'lucide-react';
 import Draggable, { DraggableEvent, DraggableData } from 'react-draggable';
 import { toPng } from 'html-to-image';
 import { cn } from '@/lib/utils';
@@ -27,14 +27,16 @@ const DraggableFurnitureItem = ({
     zoomScale, 
     updatePos, 
     isSelected,
-    onSelect 
+    onSelect,
+    onHover
 }: { 
     item: FurnitureItem, 
     calibrationScale: number,
     zoomScale: number, 
     updatePos: (id: string, x: number, y: number) => void,
     isSelected: boolean,
-    onSelect: () => void
+    onSelect: () => void,
+    onHover: (id: string | null) => void
 }) => {
     const nodeRef = useRef<HTMLDivElement>(null);
     
@@ -56,6 +58,8 @@ const DraggableFurnitureItem = ({
         >
             <div 
                 ref={nodeRef}
+                onMouseEnter={() => onHover(item.id)}
+                onMouseLeave={() => onHover(null)}
                 className={cn(
                     "absolute cursor-move pointer-events-auto flex flex-col items-center justify-center transition-shadow rounded-sm",
                     isSelected ? "shadow-md z-50" : "hover:shadow-sm"
@@ -88,27 +92,38 @@ const SidebarGroup = ({
     count, 
     children, 
     isOpen, 
-    onToggle 
+    onToggle,
+    isVisible,
+    onToggleVisibility
 }: { 
     title: string, 
     count: number, 
     children: React.ReactNode, 
     isOpen: boolean, 
-    onToggle: () => void 
+    onToggle: () => void,
+    isVisible: boolean,
+    onToggleVisibility: (e: React.MouseEvent) => void
 }) => {
     if (count === 0) return null;
     return (
         <div className="border border-gray-100 rounded-lg overflow-hidden bg-white">
-            <button 
-                onClick={onToggle}
-                className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 transition-colors"
-            >
-                <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors pr-2">
+                <button 
+                    onClick={onToggle}
+                    className="flex-1 flex items-center gap-2 p-3 text-left"
+                >
                     {isOpen ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-500" />}
                     <span className="font-semibold text-xs uppercase text-gray-700">{title}</span>
-                </div>
-                <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-[10px] font-medium">{count}</span>
-            </button>
+                    <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-[10px] font-medium ml-auto mr-2">{count}</span>
+                </button>
+                <button 
+                    onClick={onToggleVisibility}
+                    className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded"
+                    title={isVisible ? "Hide Layer" : "Show Layer"}
+                >
+                    {isVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+                </button>
+            </div>
             {isOpen && (
                 <div className="p-2 space-y-2 border-t border-gray-100">
                     {children}
@@ -122,17 +137,29 @@ const MeasurementsList = React.memo(({
     items, 
     onUpdateName, 
     onUpdateColor, 
-    onDelete 
+    onDelete,
+    hoveredId,
+    onHover
 }: { 
     items: Line[], 
     onUpdateName: (id: string, name: string) => void, 
     onUpdateColor: (id: string, color: string) => void, 
-    onDelete: (id: string) => void 
+    onDelete: (id: string) => void,
+    hoveredId: string | null,
+    onHover: (id: string | null) => void
 }) => {
     return (
         <>
             {items.map(item => (
-                <div key={item.id} className="bg-gray-50 p-2 rounded text-xs border border-gray-100">
+                <div 
+                    key={item.id} 
+                    className={cn(
+                        "p-2 rounded text-xs border transition-colors",
+                        hoveredId === item.id ? "bg-blue-50 border-blue-300" : "bg-gray-50 border-gray-100"
+                    )}
+                    onMouseEnter={() => onHover(item.id)}
+                    onMouseLeave={() => onHover(null)}
+                >
                     <div className="flex items-center justify-between mb-1">
                         <input 
                             type="text" value={item.name} onChange={(e) => onUpdateName(item.id, e.target.value)}
@@ -159,17 +186,29 @@ const AreasList = React.memo(({
     items, 
     onUpdateName, 
     onUpdateColor, 
-    onDelete 
+    onDelete,
+    hoveredId,
+    onHover
 }: { 
     items: Polygon[], 
     onUpdateName: (id: string, name: string) => void, 
     onUpdateColor: (id: string, color: string) => void, 
-    onDelete: (id: string) => void 
+    onDelete: (id: string) => void,
+    hoveredId: string | null,
+    onHover: (id: string | null) => void
 }) => {
     return (
         <>
             {items.map(item => (
-                <div key={item.id} className="bg-gray-50 p-2 rounded text-xs border border-gray-100">
+                <div 
+                    key={item.id} 
+                    className={cn(
+                        "p-2 rounded text-xs border transition-colors",
+                        hoveredId === item.id ? "bg-blue-50 border-blue-300" : "bg-gray-50 border-gray-100"
+                    )}
+                    onMouseEnter={() => onHover(item.id)}
+                    onMouseLeave={() => onHover(null)}
+                >
                     <div className="flex items-center justify-between mb-1">
                         <input 
                             type="text" value={item.name} onChange={(e) => onUpdateName(item.id, e.target.value)}
@@ -199,7 +238,9 @@ const FurnitureList = React.memo(({
     onUpdateName, 
     onUpdateDim,
     onUpdateColor, 
-    onDelete 
+    onDelete,
+    hoveredId,
+    onHover
 }: { 
     items: FurnitureItem[], 
     selectedId: string | null,
@@ -207,12 +248,23 @@ const FurnitureList = React.memo(({
     onUpdateName: (id: string, name: string) => void, 
     onUpdateDim: (id: string, dim: 'width' | 'depth', value: number) => void,
     onUpdateColor: (id: string, color: string) => void, 
-    onDelete: (id: string) => void 
+    onDelete: (id: string) => void,
+    hoveredId: string | null,
+    onHover: (id: string | null) => void
 }) => {
     return (
         <>
             {items.map(item => (
-                <div key={item.id} className={cn("bg-gray-50 p-2 rounded text-xs border transition-colors", selectedId === item.id ? "border-blue-500 bg-blue-50" : "border-gray-100")} onClick={() => onSelect(item.id)}>
+                <div 
+                    key={item.id} 
+                    className={cn(
+                        "p-2 rounded text-xs border transition-colors", 
+                        selectedId === item.id ? "border-blue-500 bg-blue-50" : (hoveredId === item.id ? "bg-blue-50 border-blue-300" : "bg-gray-50 border-gray-100")
+                    )} 
+                    onClick={() => onSelect(item.id)}
+                    onMouseEnter={() => onHover(item.id)}
+                    onMouseLeave={() => onHover(null)}
+                >
                     <div className="flex items-center justify-between mb-1">
                         <input 
                             type="text" value={item.name} onChange={(e) => onUpdateName(item.id, e.target.value)}
@@ -255,6 +307,10 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   const [isMeasurementsOpen, setIsMeasurementsOpen] = useState(true);
   const [isAreasOpen, setIsAreasOpen] = useState(true);
   const [isFurnitureOpen, setIsFurnitureOpen] = useState(true);
+  const [isMeasurementsVisible, setIsMeasurementsVisible] = useState(true);
+  const [isAreasVisible, setIsAreasVisible] = useState(true);
+  const [isFurnitureVisible, setIsFurnitureVisible] = useState(true);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
   
   // Interaction State
   const [currentLine, setCurrentLine] = useState<Partial<Line> | null>(null);
@@ -263,6 +319,38 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   const [showMagnifier, setShowMagnifier] = useState(false);
   const [magnifierPos, setMagnifierPos] = useState<{x: number, y: number, bgX: number, bgY: number} | null>(null);
   const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
+  
+  // Keyboard Nudging for Furniture
+  useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+          if (!selectedFurnitureId) return;
+          
+          // Prevent nudging if typing in an input
+          if (document.activeElement instanceof HTMLInputElement) return;
+
+          let dx = 0;
+          let dy = 0;
+
+          switch (e.key) {
+              case 'ArrowUp': dy = -1; break;
+              case 'ArrowDown': dy = 1; break;
+              case 'ArrowLeft': dx = -1; break;
+              case 'ArrowRight': dx = 1; break;
+              default: return;
+          }
+
+          e.preventDefault();
+          setFurniture(prev => prev.map(item => {
+              if (item.id === selectedFurnitureId) {
+                  return { ...item, x: item.x + dx, y: item.y + dy };
+              }
+              return item;
+          }));
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFurnitureId]);
   
   // New Calibration State
   const [calibrationLine, setCalibrationLine] = useState<Line | null>(null);
@@ -632,6 +720,21 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       setFurniture(prev => prev.filter(f => f.id !== id));
   }, []);
 
+  const toggleMeasurementsVisibility = useCallback((e: React.MouseEvent) => {
+      e.stopPropagation();
+      setIsMeasurementsVisible(v => !v);
+  }, []);
+
+  const toggleAreasVisibility = useCallback((e: React.MouseEvent) => {
+      e.stopPropagation();
+      setIsAreasVisible(v => !v);
+  }, []);
+
+  const toggleFurnitureVisibility = useCallback((e: React.MouseEvent) => {
+      e.stopPropagation();
+      setIsFurnitureVisible(v => !v);
+  }, []);
+
   const renderTShapes = (start: Point, end: Point, color: string) => {
     const dx = end.x - start.x;
     const dy = end.y - start.y;
@@ -781,27 +884,52 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                     {/* Grouped Items List */}
                     <div className="space-y-3 pt-2">
                         {/* Measurements */}
-                        <SidebarGroup title="Measurements" count={lines.length} isOpen={isMeasurementsOpen} onToggle={() => setIsMeasurementsOpen(!isMeasurementsOpen)}>
+                        <SidebarGroup 
+                            title="Measurements" 
+                            count={lines.length} 
+                            isOpen={isMeasurementsOpen} 
+                            onToggle={() => setIsMeasurementsOpen(!isMeasurementsOpen)}
+                            isVisible={isMeasurementsVisible}
+                            onToggleVisibility={toggleMeasurementsVisibility}
+                        >
                             <MeasurementsList 
                                 items={lines} 
                                 onUpdateName={updateItemName} 
                                 onUpdateColor={updateItemColor} 
                                 onDelete={deleteItem} 
+                                hoveredId={hoveredId}
+                                onHover={setHoveredId}
                             />
                         </SidebarGroup>
 
                         {/* Areas */}
-                        <SidebarGroup title="Areas" count={polygons.length} isOpen={isAreasOpen} onToggle={() => setIsAreasOpen(!isAreasOpen)}>
+                        <SidebarGroup 
+                            title="Areas" 
+                            count={polygons.length} 
+                            isOpen={isAreasOpen} 
+                            onToggle={() => setIsAreasOpen(!isAreasOpen)}
+                            isVisible={isAreasVisible}
+                            onToggleVisibility={toggleAreasVisibility}
+                        >
                             <AreasList 
                                 items={polygons} 
                                 onUpdateName={updateItemName} 
                                 onUpdateColor={updateItemColor} 
                                 onDelete={deleteItem} 
+                                hoveredId={hoveredId}
+                                onHover={setHoveredId}
                             />
                         </SidebarGroup>
 
                         {/* Furniture */}
-                        <SidebarGroup title="Furniture" count={furniture.length} isOpen={isFurnitureOpen} onToggle={() => setIsFurnitureOpen(!isFurnitureOpen)}>
+                        <SidebarGroup 
+                            title="Furniture" 
+                            count={furniture.length} 
+                            isOpen={isFurnitureOpen} 
+                            onToggle={() => setIsFurnitureOpen(!isFurnitureOpen)}
+                            isVisible={isFurnitureVisible}
+                            onToggleVisibility={toggleFurnitureVisibility}
+                        >
                             <FurnitureList 
                                 items={furniture} 
                                 selectedId={selectedFurnitureId}
@@ -810,6 +938,8 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                                 onUpdateDim={updateFurnitureDim}
                                 onUpdateColor={updateItemColor} 
                                 onDelete={deleteItem} 
+                                hoveredId={hoveredId}
+                                onHover={setHoveredId}
                             />
                         </SidebarGroup>
                         
@@ -885,11 +1015,20 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                         {/* SVG Layer */}
                         <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
                             {/* Polygons */}
-                            {polygons.map(poly => (
-                                <g key={poly.id}>
+                            {isAreasVisible && polygons.map(poly => (
+                                <g 
+                                    key={poly.id}
+                                    onMouseEnter={() => setHoveredId(poly.id)}
+                                    onMouseLeave={() => setHoveredId(null)}
+                                    className="pointer-events-auto cursor-pointer"
+                                >
                                     <polygon 
                                         points={poly.points.map(p => `${p.x},${p.y}`).join(' ')}
-                                        fill={poly.color} fillOpacity={0.2} stroke={poly.color} strokeWidth={2} vectorEffect="non-scaling-stroke"
+                                        fill={poly.color} 
+                                        fillOpacity={hoveredId === poly.id ? 0.4 : 0.2} 
+                                        stroke={poly.color} 
+                                        strokeWidth={hoveredId === poly.id ? 4 : 2} 
+                                        vectorEffect="non-scaling-stroke"
                                     />
                                     <text 
                                         x={poly.points.reduce((a,b)=>a+b.x,0)/poly.points.length} 
@@ -910,9 +1049,19 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                             )}
 
                             {/* Lines */}
-                            {lines.map((line) => (
-                                <g key={line.id}>
-                                    <line x1={line.start.x} y1={line.start.y} x2={line.end.x} y2={line.end.y} stroke={line.color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                            {isMeasurementsVisible && lines.map((line) => (
+                                <g 
+                                    key={line.id}
+                                    onMouseEnter={() => setHoveredId(line.id)}
+                                    onMouseLeave={() => setHoveredId(null)}
+                                    className="pointer-events-auto cursor-pointer"
+                                >
+                                    <line 
+                                        x1={line.start.x} y1={line.start.y} x2={line.end.x} y2={line.end.y} 
+                                        stroke={line.color} 
+                                        strokeWidth={hoveredId === line.id ? 4 : 2} 
+                                        vectorEffect="non-scaling-stroke" 
+                                    />
                                     {renderTShapes(line.start, line.end, line.color)}
                                     {line.length && (
                                         <g>
@@ -981,7 +1130,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
                         {/* Furniture Layer (HTML) */}
                         <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
-                            {furniture.map((item) => (
+                            {isFurnitureVisible && furniture.map((item) => (
                                 <DraggableFurnitureItem 
                                     key={item.id} 
                                     item={item} 
@@ -990,6 +1139,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                                     updatePos={updateFurniturePos}
                                     isSelected={selectedFurnitureId === item.id}
                                     onSelect={() => setSelectedFurnitureId(item.id)}
+                                    onHover={setHoveredId}
                                 />
                             ))}
                         </div>
