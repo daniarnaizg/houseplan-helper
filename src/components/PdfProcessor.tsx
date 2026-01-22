@@ -118,6 +118,8 @@ export function PdfProcessor({ file, onComplete, onCancel }: PdfProcessorProps) 
         await page.render({
             canvasContext: ctx,
             viewport: viewport
+            // Cast to any because the type definition incorrectly requires 'canvas' 
+            // when 'canvasContext' is provided.
         } as any).promise;
         
         const base64 = canvas.toDataURL('image/png');

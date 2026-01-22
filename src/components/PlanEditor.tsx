@@ -276,6 +276,63 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   const imgRef = useRef<HTMLImageElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Middle Mouse Panning State
+  const panState = useRef<{
+      isPanning: boolean;
+      startX: number;
+      startY: number;
+      initialX: number;
+      initialY: number;
+      scale: number;
+  }>({ isPanning: false, startX: 0, startY: 0, initialX: 0, initialY: 0, scale: 1 });
+
+  useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+        if (!panState.current.isPanning || !transformComponentRef.current) return;
+        
+        e.preventDefault();
+        const dx = e.clientX - panState.current.startX;
+        const dy = e.clientY - panState.current.startY;
+        
+        transformComponentRef.current.setTransform(
+            panState.current.initialX + dx,
+            panState.current.initialY + dy,
+            panState.current.scale,
+            0
+        );
+    };
+
+    const handleGlobalMouseUp = (e: MouseEvent) => {
+        if (panState.current.isPanning) {
+            panState.current.isPanning = false;
+        }
+    };
+
+    window.addEventListener('mousemove', handleGlobalMouseMove);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+
+    return () => {
+        window.removeEventListener('mousemove', handleGlobalMouseMove);
+        window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, []);
+
+  const handleGlobalMouseDown = (e: React.MouseEvent) => {
+      if (e.button === 1 && transformComponentRef.current) { // Middle click
+          e.preventDefault();
+          e.stopPropagation();
+          const { positionX, positionY, scale } = transformComponentRef.current.instance.transformState;
+          panState.current = {
+              isPanning: true,
+              startX: e.clientX,
+              startY: e.clientY,
+              initialX: positionX,
+              initialY: positionY,
+              scale: scale
+          };
+      }
+  };
+
   useEffect(() => {
     if (initialImageSrc) {
         setImageSrc(initialImageSrc);
@@ -413,6 +470,11 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 1) {
+        handleGlobalMouseDown(e);
+        return;
+    }
+    if (e.button !== 0) return; // Only allow Left Click for drawing/interaction
     if (mode === 'view') return;
     if (!imgRef.current) return;
     if ((e.target as HTMLElement).closest('.react-draggable')) return;
@@ -438,11 +500,18 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
     if (showMagnifier && imgRef.current) {
         const clientX = e.clientX;
         const clientY = e.clientY;
+        
+        // Calculate position relative to the image
         const rel = getRelativeCoordinates(e, imgRef.current);
-        const zoom = 2;
+        
+        const zoom = 2; // Magnifier zoom level
         const magSize = 150;
+        
+        // Calculate background position to center the magnifier view on the cursor
+        // We need to show the part of the image at 'rel.x, rel.y' in the center of the magnifier
         const bgX = -rel.x * zoom + magSize / 2;
         const bgY = -rel.y * zoom + magSize / 2;
+        
         setMagnifierPos({ x: clientX, y: clientY, bgX, bgY });
     }
 
@@ -568,13 +637,31 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
     const dy = end.y - start.y;
     const len = Math.hypot(dx, dy);
     if (len === 0) return null;
-    const px = -dy / len;
-    const py = dx / len;
-    const size = 6;
+    
+    // Normalized direction vector (along the line)
+    const ux = dx / len;
+    const uy = dy / len;
+    
+    // Perpendicular vector
+    const px = -uy;
+    const py = ux;
+    
+    const size = 8; // Half-length of the T-bar (total width = 16)
+    
     return (
         <>
-            <line x1={start.x - px * size} y1={start.y - py * size} x2={start.x + px * size} y2={start.y + py * size} stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-            <line x1={end.x - px * size} y1={end.y - py * size} x2={end.x + px * size} y2={end.y + py * size} stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+            {/* Start T */}
+            <line 
+                x1={start.x - px * size} y1={start.y - py * size} 
+                x2={start.x + px * size} y2={start.y + py * size} 
+                stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" 
+            />
+            {/* End T */}
+            <line 
+                x1={end.x - px * size} y1={end.y - py * size} 
+                x2={end.x + px * size} y2={end.y + py * size} 
+                stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" 
+            />
         </>
     );
   };
@@ -736,7 +823,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 relative bg-gray-100 flex flex-col">
+      <main className="flex-1 relative bg-gray-100 flex flex-col" onMouseDown={handleGlobalMouseDown}>
         {/* Top Controls */}
         <div className="absolute top-4 right-4 z-20 flex flex-col gap-4">
             <div className="flex flex-col gap-2 bg-white/90 backdrop-blur shadow-lg rounded-lg p-2 border border-gray-200">
@@ -770,12 +857,12 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                 minScale={0.1}
                 limitToBounds={false}
                 centerOnInit={true}
-                disabled={mode !== 'view'} 
-                wheel={{ disabled: mode !== 'view' }} 
-                panning={{ disabled: mode !== 'view' }}
+                wheel={{ disabled: false }} 
+                panning={{ disabled: false, excluded: ['no-pan'] }}
+                pinch={{ disabled: false }}
                 onTransformed={(e) => setZoomScale(e.state.scale)} 
              >
-                <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
+                <TransformComponent wrapperClass="!w-full !h-full" contentClass={cn("!w-full !h-full flex items-center justify-center", mode !== 'view' && "no-pan")}>
                     <div 
                         ref={contentRef}
                         className="relative shadow-2xl"
