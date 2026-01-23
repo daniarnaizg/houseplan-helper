@@ -2,22 +2,24 @@ import { useEffect } from 'react';
 import { useTemporalStore } from '@/store/usePlanStore';
 
 export function useUndoRedo() {
-    const { undo, redo, pastStates, futureStates } = useTemporalStore().getState();
+    const { undo, redo, pastStates, futureStates } = useTemporalStore((state) => state);
     
-    // Subscribe to store updates to trigger re-renders when history changes
-    const pastLength = useTemporalStore((state) => state.pastStates.length);
-    const futureLength = useTemporalStore((state) => state.futureStates.length);
+    const pastLength = pastStates.length;
+    const futureLength = futureStates.length;
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+            // Check for Ctrl+Z or Cmd+Z
+            if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ') {
                 e.preventDefault();
                 if (e.shiftKey) {
                     redo();
                 } else {
                     undo();
                 }
-            } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+            } 
+            // Check for Ctrl+Y or Cmd+Y (Redo)
+            else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY') {
                 e.preventDefault();
                 redo();
             }
@@ -25,7 +27,7 @@ export function useUndoRedo() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [undo, redo]);
 
     return {
         undo,

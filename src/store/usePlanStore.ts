@@ -111,5 +111,9 @@ export const usePlanStore = create<PlanState>()(
     )
 );
 
-// Helper type for using the store with temporal state
-export const useTemporalStore = () => usePlanStore.temporal;
+// Helper hook for using the temporal store
+import { useStore } from 'zustand';
+
+export const useTemporalStore = <T>(
+  selector: (state: TemporalState<PlanState>) => T,
+) => useStore(usePlanStore.temporal, selector);
