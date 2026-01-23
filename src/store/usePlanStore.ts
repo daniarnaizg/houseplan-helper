@@ -114,6 +114,8 @@ export const usePlanStore = create<PlanState>()(
 // Helper hook for using the temporal store
 import { useStore } from 'zustand';
 
+type PlanStatePartial = Pick<PlanState, 'lines' | 'polygons' | 'furniture' | 'scale' | 'unit'>;
+
 export const useTemporalStore = <T>(
-  selector: (state: TemporalState<PlanState>) => T,
+  selector: (state: TemporalState<PlanStatePartial>) => T,
 ) => useStore(usePlanStore.temporal, selector);

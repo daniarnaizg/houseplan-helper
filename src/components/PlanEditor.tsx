@@ -52,7 +52,8 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       updateLine, removeLine,
       updatePolygon, removePolygon,
       addFurniture, updateFurniture, removeFurniture, setSelectedFurnitureId,
-      loadProject
+      loadProject,
+      setUnit
   } = usePlanStore();
 
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
