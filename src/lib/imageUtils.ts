@@ -19,17 +19,3 @@ export const rotateImage = (src: string, direction: 'cw' | 'ccw'): Promise<strin
     });
 };
 
-// Calculate polygon area (Shoelace formula)
-export const calculatePolygonArea = (points: {x: number, y: number}[], scale: number): number => {
-    const len = points.length;
-    if (len < 3) return 0;
-    let area = 0;
-    for (let i = 0; i < len; i++) {
-        const j = (i + 1) % len;
-        const p1 = points[i];
-        const p2 = points[j];
-        area += p1.x * p2.y;
-        area -= p2.x * p1.y;
-    }
-    return (Math.abs(area) / 2) / (scale * scale);
-};

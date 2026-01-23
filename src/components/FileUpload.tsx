@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileImage } from 'lucide-react';
+import { Upload, FileImage, Ruler, DraftingCompass, PencilRuler } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface FileUploadProps {
@@ -24,45 +24,76 @@ export function FileUpload({ onFileSelect }: FileUploadProps) {
   });
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
-      <div className="w-full max-w-md text-center space-y-6">
-        <h1 className="text-4xl font-bold tracking-tight text-gray-900">
-          HousePlan Helper
-        </h1>
-        <p className="text-gray-500">
-          Upload your house plan to start measuring and planning.
-        </p>
+    <div className="relative flex flex-col items-center justify-center min-h-screen p-4 bg-grid-pattern overflow-hidden">
+      {/* Decorative Technical Elements */}
+      <div className="absolute top-8 left-8 text-border opacity-50">
+        <Ruler className="w-12 h-12" />
+      </div>
+      <div className="absolute bottom-8 right-8 text-border opacity-50">
+        <DraftingCompass className="w-12 h-12" />
+      </div>
+      <div className="absolute top-1/4 right-1/4 w-64 h-px bg-border -rotate-45" />
+      <div className="absolute bottom-1/4 left-1/4 w-64 h-px bg-border rotate-45" />
+
+      <div className="z-10 w-full max-w-lg space-y-8">
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white border border-border rounded-full shadow-sm mb-4">
+            <PencilRuler className="w-4 h-4 text-secondary" />
+            <span className="font-mono text-xs font-semibold text-foreground tracking-wider">V 2.0 // ARCHITECT_MODE</span>
+          </div>
+          <h1 className="text-5xl font-bold tracking-tighter text-primary font-sans">
+            HousePlan <span className="text-secondary">Helper</span>
+          </h1>
+          <p className="text-muted-foreground font-mono text-sm max-w-sm mx-auto">
+            INITIALIZE PROJECT &gt; UPLOAD BLUEPRINT &gt; CALIBRATE SCALE
+          </p>
+        </div>
 
         <div
           {...getRootProps()}
           className={cn(
-            "relative group cursor-pointer flex flex-col items-center justify-center w-full aspect-video rounded-2xl border-2 border-dashed transition-all duration-300 ease-in-out",
-            isDragActive
-              ? "border-blue-500 bg-blue-50 scale-[1.02]"
-              : "border-gray-300 bg-white hover:border-gray-400 hover:bg-gray-50 hover:shadow-lg"
+            "relative group cursor-pointer transition-all duration-300 ease-in-out",
+            "bg-white border-2 border-dashed border-border aspect-[4/3] flex flex-col items-center justify-center",
+            "shadow-[8px_8px_0px_rgba(0,0,0,0.05)] hover:shadow-[12px_12px_0px_rgba(0,0,0,0.05)] hover:-translate-y-1",
+            isDragActive ? "border-secondary bg-blue-50/10 scale-[1.02]" : "hover:border-primary"
           )}
         >
+          {/* Corner marks for 'Lens' effect */}
+          <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary -mt-1 -ml-1" />
+          <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-primary -mt-1 -mr-1" />
+          <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-primary -mb-1 -ml-1" />
+          <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-primary -mb-1 -mr-1" />
+
           <input {...getInputProps()} />
-          <div className="flex flex-col items-center justify-center p-6 space-y-4">
+          
+          <div className="flex flex-col items-center justify-center space-y-6 text-center p-8">
             <div className={cn(
-              "p-4 rounded-full transition-colors duration-300",
-              isDragActive ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700"
+              "p-6 rounded-none border-2 transition-colors duration-300",
+              isDragActive 
+                ? "bg-secondary/10 border-secondary text-secondary" 
+                : "bg-muted border-primary text-primary group-hover:bg-primary group-hover:text-white"
             )}>
               {isDragActive ? (
-                <Upload className="w-8 h-8" />
+                <Upload className="w-10 h-10" />
               ) : (
-                <FileImage className="w-8 h-8" />
+                <FileImage className="w-10 h-10" />
               )}
             </div>
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-gray-900">
-                {isDragActive ? "Drop the file here" : "Click or drag to upload"}
+            
+            <div className="space-y-2">
+              <p className="font-mono text-lg font-bold text-foreground">
+                {isDragActive ? "DROP_FILE_HERE" : "UPLOAD_SOURCE_FILE"}
               </p>
-              <p className="text-xs text-gray-500">
-                Supports PDF, JPG, PNG, WEBP
+              <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
+                Supported Formats: PDF, JPG, PNG
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="flex justify-between items-center px-4 font-mono text-xs text-muted-foreground">
+          <span>SYSTEM_READY</span>
+          <span>WAITING_FOR_INPUT...</span>
         </div>
       </div>
     </div>

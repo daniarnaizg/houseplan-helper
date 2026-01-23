@@ -1,11 +1,18 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchContentRef } from 'react-zoom-pan-pinch';
-import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw, Eye, EyeOff, Check, ArrowRight } from 'lucide-react';
 import Draggable, { DraggableEvent, DraggableData } from 'react-draggable';
 import { toPng } from 'html-to-image';
 import { cn } from '@/lib/utils';
 import { Mode, Line, Polygon, FurnitureItem, Point, ProjectData } from './types';
-import { rotateImage, calculatePolygonArea } from '@/lib/imageUtils';
+import { rotateImage } from '@/lib/imageUtils';
+import { calculatePolygonArea, calculateDistance, pixelsToUnit } from '@/lib/geometry';
+import { DraggableFurnitureItem } from './DraggableFurnitureItem';
+import { SidebarGroup } from './SidebarGroup';
+import { MeasurementsList } from './MeasurementsList';
+import { AreasList } from './AreasList';
+import { FurnitureList } from './FurnitureList';
+import { PlanLayer } from './PlanLayer';
 
 interface PlanEditorProps {
   file?: File;
@@ -21,274 +28,15 @@ const FURNITURE_CATALOG = [
     { type: 'custom', name: 'Custom', width: 1.0, depth: 1.0, icon: '📦', defaultColor: '#ef4444' },
 ];
 
-const DraggableFurnitureItem = ({ 
-    item, 
-    calibrationScale,
-    zoomScale, 
-    updatePos, 
-    isSelected,
-    onSelect,
-    onHover
-}: { 
-    item: FurnitureItem, 
-    calibrationScale: number,
-    zoomScale: number, 
-    updatePos: (id: string, x: number, y: number) => void,
-    isSelected: boolean,
-    onSelect: () => void,
-    onHover: (id: string | null) => void
-}) => {
-    const nodeRef = useRef<HTMLDivElement>(null);
-    
-    const handleDrag = (e: any, data: any) => {
-        updatePos(item.id, data.x, data.y);
-    };
 
-    return (
-        <Draggable
-            nodeRef={nodeRef}
-            position={{ x: item.x, y: item.y }}
-            scale={zoomScale}
-            onStart={(e: any) => {
-                e.stopPropagation(); 
-                onSelect();
-            }}
-            onDrag={handleDrag}
-            onMouseDown={(e: any) => e.stopPropagation()}
-        >
-            <div 
-                ref={nodeRef}
-                onMouseEnter={() => onHover(item.id)}
-                onMouseLeave={() => onHover(null)}
-                className={cn(
-                    "absolute cursor-move pointer-events-auto flex flex-col items-center justify-center transition-shadow rounded-sm",
-                    isSelected ? "shadow-md z-50" : "hover:shadow-sm"
-                )}
-                style={{
-                    width: (item.width * calibrationScale),
-                    height: (item.depth * calibrationScale),
-                    backgroundColor: isSelected ? item.color + '60' : item.color + '40',
-                    borderColor: item.color,
-                    borderWidth: isSelected ? '2px' : '1px',
-                    borderStyle: isSelected ? 'dashed' : 'solid',
-                }}
-            >
-                <span className="text-xs font-bold leading-none pointer-events-none truncate max-w-full px-1" style={{ color: '#000' }}>
-                    {item.name}
-                </span>
-                
-                {(isSelected || (item.width * calibrationScale) > 60) && (
-                    <span className="text-[10px] leading-none pointer-events-none mt-0.5 opacity-75" style={{ color: '#000' }}>
-                        {item.width}m x {item.depth}m
-                    </span>
-                )}
-            </div>
-        </Draggable>
-    );
-};
 
-const SidebarGroup = ({ 
-    title, 
-    count, 
-    children, 
-    isOpen, 
-    onToggle,
-    isVisible,
-    onToggleVisibility
-}: { 
-    title: string, 
-    count: number, 
-    children: React.ReactNode, 
-    isOpen: boolean, 
-    onToggle: () => void,
-    isVisible: boolean,
-    onToggleVisibility: (e: React.MouseEvent) => void
-}) => {
-    if (count === 0) return null;
-    return (
-        <div className="border border-gray-100 rounded-lg overflow-hidden bg-white">
-            <div className="flex items-center justify-between bg-gray-50 hover:bg-gray-100 transition-colors pr-2">
-                <button 
-                    onClick={onToggle}
-                    className="flex-1 flex items-center gap-2 p-3 text-left"
-                >
-                    {isOpen ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-500" />}
-                    <span className="font-semibold text-xs uppercase text-gray-700">{title}</span>
-                    <span className="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-[10px] font-medium ml-auto mr-2">{count}</span>
-                </button>
-                <button 
-                    onClick={onToggleVisibility}
-                    className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded"
-                    title={isVisible ? "Hide Layer" : "Show Layer"}
-                >
-                    {isVisible ? <Eye size={16} /> : <EyeOff size={16} />}
-                </button>
-            </div>
-            {isOpen && (
-                <div className="p-2 space-y-2 border-t border-gray-100">
-                    {children}
-                </div>
-            )}
-        </div>
-    );
-};
 
-const MeasurementsList = React.memo(({ 
-    items, 
-    onUpdateName, 
-    onUpdateColor, 
-    onDelete,
-    hoveredId,
-    onHover
-}: { 
-    items: Line[], 
-    onUpdateName: (id: string, name: string) => void, 
-    onUpdateColor: (id: string, color: string) => void, 
-    onDelete: (id: string) => void,
-    hoveredId: string | null,
-    onHover: (id: string | null) => void
-}) => {
-    return (
-        <>
-            {items.map(item => (
-                <div 
-                    key={item.id} 
-                    className={cn(
-                        "p-2 rounded text-xs border transition-colors",
-                        hoveredId === item.id ? "bg-blue-50 border-blue-300" : "bg-gray-50 border-gray-100"
-                    )}
-                    onMouseEnter={() => onHover(item.id)}
-                    onMouseLeave={() => onHover(null)}
-                >
-                    <div className="flex items-center justify-between mb-1">
-                        <input 
-                            type="text" value={item.name} onChange={(e) => onUpdateName(item.id, e.target.value)}
-                            className="bg-transparent font-medium text-gray-900 focus:outline-none focus:border-b border-blue-500 w-full mr-2"
-                        />
-                        <button onClick={() => onDelete(item.id)} className="text-gray-400 hover:text-red-500"><X size={14}/></button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="relative w-4 h-4 rounded-full overflow-hidden border border-gray-200">
-                            <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 cursor-pointer border-none" />
-                        </div>
-                        <span className="text-gray-500 font-mono">
-                            {item.length?.toFixed(2)} {item.unit}
-                        </span>
-                    </div>
-                </div>
-            ))}
-        </>
-    );
-});
-MeasurementsList.displayName = 'MeasurementsList';
 
-const AreasList = React.memo(({ 
-    items, 
-    onUpdateName, 
-    onUpdateColor, 
-    onDelete,
-    hoveredId,
-    onHover
-}: { 
-    items: Polygon[], 
-    onUpdateName: (id: string, name: string) => void, 
-    onUpdateColor: (id: string, color: string) => void, 
-    onDelete: (id: string) => void,
-    hoveredId: string | null,
-    onHover: (id: string | null) => void
-}) => {
-    return (
-        <>
-            {items.map(item => (
-                <div 
-                    key={item.id} 
-                    className={cn(
-                        "p-2 rounded text-xs border transition-colors",
-                        hoveredId === item.id ? "bg-blue-50 border-blue-300" : "bg-gray-50 border-gray-100"
-                    )}
-                    onMouseEnter={() => onHover(item.id)}
-                    onMouseLeave={() => onHover(null)}
-                >
-                    <div className="flex items-center justify-between mb-1">
-                        <input 
-                            type="text" value={item.name} onChange={(e) => onUpdateName(item.id, e.target.value)}
-                            className="bg-transparent font-medium text-gray-900 focus:outline-none focus:border-b border-blue-500 w-full mr-2"
-                        />
-                        <button onClick={() => onDelete(item.id)} className="text-gray-400 hover:text-red-500"><X size={14}/></button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div className="relative w-4 h-4 rounded-full overflow-hidden border border-gray-200">
-                            <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 cursor-pointer border-none" />
-                        </div>
-                        <span className="text-gray-500 font-mono">
-                            {item.area?.toFixed(2)} {item.unit}
-                        </span>
-                    </div>
-                </div>
-            ))}
-        </>
-    );
-});
-AreasList.displayName = 'AreasList';
 
-const FurnitureList = React.memo(({ 
-    items, 
-    selectedId,
-    onSelect,
-    onUpdateName, 
-    onUpdateDim,
-    onUpdateColor, 
-    onDelete,
-    hoveredId,
-    onHover
-}: { 
-    items: FurnitureItem[], 
-    selectedId: string | null,
-    onSelect: (id: string) => void,
-    onUpdateName: (id: string, name: string) => void, 
-    onUpdateDim: (id: string, dim: 'width' | 'depth', value: number) => void,
-    onUpdateColor: (id: string, color: string) => void, 
-    onDelete: (id: string) => void,
-    hoveredId: string | null,
-    onHover: (id: string | null) => void
-}) => {
-    return (
-        <>
-            {items.map(item => (
-                <div 
-                    key={item.id} 
-                    className={cn(
-                        "p-2 rounded text-xs border transition-colors", 
-                        selectedId === item.id ? "border-blue-500 bg-blue-50" : (hoveredId === item.id ? "bg-blue-50 border-blue-300" : "bg-gray-50 border-gray-100")
-                    )} 
-                    onClick={() => onSelect(item.id)}
-                    onMouseEnter={() => onHover(item.id)}
-                    onMouseLeave={() => onHover(null)}
-                >
-                    <div className="flex items-center justify-between mb-1">
-                        <input 
-                            type="text" value={item.name} onChange={(e) => onUpdateName(item.id, e.target.value)}
-                            className="bg-transparent font-medium text-gray-900 focus:outline-none focus:border-b border-blue-500 w-24"
-                        />
-                        <button onClick={(e) => { e.stopPropagation(); onDelete(item.id); }} className="text-gray-400 hover:text-red-500"><X size={14}/></button>
-                    </div>
-                    <div className="flex justify-between items-center mt-2">
-                        <div className="flex gap-2 items-center text-gray-500">
-                            <span>W:</span>
-                            <input type="number" step="0.1" value={item.width} onChange={(e) => onUpdateDim(item.id, 'width', parseFloat(e.target.value))} className="w-10 bg-white border rounded px-1" />
-                            <span>D:</span>
-                            <input type="number" step="0.1" value={item.depth} onChange={(e) => onUpdateDim(item.id, 'depth', parseFloat(e.target.value))} className="w-10 bg-white border rounded px-1" />
-                        </div>
-                        <div className="relative w-4 h-4 rounded-full overflow-hidden border border-gray-200 shrink-0">
-                            <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 cursor-pointer border-none" />
-                        </div>
-                    </div>
-                </div>
-            ))}
-        </>
-    );
-});
-FurnitureList.displayName = 'FurnitureList';
+
+
+
+
 
 export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) {
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc || null);
@@ -325,7 +73,6 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       const handleKeyDown = (e: KeyboardEvent) => {
           if (!selectedFurnitureId) return;
           
-          // Prevent nudging if typing in an input
           if (document.activeElement instanceof HTMLInputElement) return;
 
           let dx = 0;
@@ -524,8 +271,6 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   };
 
   const handleAddFurniture = useCallback((item: typeof FURNITURE_CATALOG[0]) => {
-      // Note: We still need 'scale' from closure, but that changes rarely compared to mouse movement.
-      // If we strictly wanted to avoid 'scale' dep, we'd need a ref, but this is acceptable as adding furniture is a discrete action.
       if (!scale) {
           alert("Please calibrate the plan first!");
           return;
@@ -562,7 +307,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
         handleGlobalMouseDown(e);
         return;
     }
-    if (e.button !== 0) return; // Only allow Left Click for drawing/interaction
+    if (e.button !== 0) return; 
     if (mode === 'view') return;
     if (!imgRef.current) return;
     if ((e.target as HTMLElement).closest('.react-draggable')) return;
@@ -579,7 +324,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       start: point,
       end: point,
       id: Math.random().toString(36).substr(2, 9),
-      color: '#dc2626',
+      color: '#ef4444',
       name: mode === 'calibrate' ? 'Reference' : `Measurement ${lines.length + 1}`
     });
   };
@@ -588,18 +333,11 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
     if (showMagnifier && imgRef.current) {
         const clientX = e.clientX;
         const clientY = e.clientY;
-        
-        // Calculate position relative to the image
         const rel = getRelativeCoordinates(e, imgRef.current);
-        
-        const zoom = 2; // Magnifier zoom level
+        const zoom = 2; 
         const magSize = 150;
-        
-        // Calculate background position to center the magnifier view on the cursor
-        // We need to show the part of the image at 'rel.x, rel.y' in the center of the magnifier
         const bgX = -rel.x * zoom + magSize / 2;
         const bgY = -rel.y * zoom + magSize / 2;
-        
         setMagnifierPos({ x: clientX, y: clientY, bgX, bgY });
     }
 
@@ -624,9 +362,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
     if (!isDrawing || !currentLine?.start || !currentLine?.end) return;
     setIsDrawing(false);
 
-    const dx = currentLine.end.x - currentLine.start.x;
-    const dy = currentLine.end.y - currentLine.start.y;
-    if (Math.hypot(dx, dy) < 5) {
+    if (calculateDistance(currentLine.start, currentLine.end) < 5) {
         setCurrentLine(null);
         return;
     }
@@ -636,18 +372,17 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       start: currentLine.start,
       end: currentLine.end,
       name: currentLine.name || `Measurement`,
-      color: currentLine.color || '#dc2626'
+      color: currentLine.color || '#ef4444'
     };
 
     if (mode === 'calibrate') {
-      // Store calibration line separately, do not add to measurements
       setCalibrationLine(newLine);
       setCurrentLine(null);
       setShowCalibrationDialog(true);
     } else if (mode === 'measure') {
       if (scale) {
-        const pxLen = Math.hypot(newLine.end.x - newLine.start.x, newLine.end.y - newLine.start.y);
-        newLine.length = pxLen / scale;
+        const pxLen = calculateDistance(newLine.start, newLine.end);
+        newLine.length = pixelsToUnit(pxLen, scale);
         newLine.unit = unit;
         setLines(prev => [...prev, newLine]);
       }
@@ -680,13 +415,12 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
     const dist = parseFloat(calibrationDistance);
     
     if (!isNaN(dist) && dist > 0) {
-      const pxLen = Math.hypot(calibrationLine.end.x - calibrationLine.start.x, calibrationLine.end.y - calibrationLine.start.y);
+      const pxLen = calculateDistance(calibrationLine.start, calibrationLine.end);
       const newScale = pxLen / dist;
       
-      // Recalculate ALL existing measurements with new scale
       setLines(prev => prev.map(l => {
-          const lPx = Math.hypot(l.end.x - l.start.x, l.end.y - l.start.y);
-          return { ...l, length: lPx / newScale, unit };
+          const lPx = calculateDistance(l.start, l.end);
+          return { ...l, length: pixelsToUnit(lPx, newScale), unit };
       }));
       
       setPolygons(prev => prev.map(p => {
@@ -694,7 +428,6 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
           return { ...p, area, unit: 'sq ' + unit };
       }));
 
-      // Update global state
       setScale(newScale);
       setMode('measure');
       setCalibrationLine(null);
@@ -735,84 +468,52 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       setIsFurnitureVisible(v => !v);
   }, []);
 
-  const renderTShapes = (start: Point, end: Point, color: string) => {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const len = Math.hypot(dx, dy);
-    if (len === 0) return null;
-    
-    // Normalized direction vector (along the line)
-    const ux = dx / len;
-    const uy = dy / len;
-    
-    // Perpendicular vector
-    const px = -uy;
-    const py = ux;
-    
-    const size = 8; // Half-length of the T-bar (total width = 16)
-    
-    return (
-        <>
-            {/* Start T */}
-            <line 
-                x1={start.x - px * size} y1={start.y - py * size} 
-                x2={start.x + px * size} y2={start.y + py * size} 
-                stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" 
-            />
-            {/* End T */}
-            <line 
-                x1={end.x - px * size} y1={end.y - py * size} 
-                x2={end.x + px * size} y2={end.y + py * size} 
-                stroke={color} strokeWidth={2} vectorEffect="non-scaling-stroke" 
-            />
-        </>
-    );
-  };
-
+  
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100">
+    <div className="flex h-screen overflow-hidden bg-grid-pattern">
       <input type="file" ref={fileInputRef} onChange={handleImportFile} accept=".json" className="hidden" />
 
       {/* Magnifier Portal */}
-                  {showMagnifier && magnifierPos && imageSrc && (
-                <div 
-                  className="fixed z-50 pointer-events-none rounded-full border-4 border-white shadow-xl overflow-hidden bg-white"
-                  style={{
-                      left: magnifierPos.x + 20,
-                      top: magnifierPos.y + 20,
-                      width: 150,
-                      height: 150,
-                      backgroundImage: `url(${imageSrc})`,
-                      backgroundRepeat: 'no-repeat',
-                      backgroundSize: `${(imgDimensions?.width || 0) * 2}px ${(imgDimensions?.height || 0) * 2}px`,
-                      backgroundPosition: `${magnifierPos.bgX}px ${magnifierPos.bgY}px`
-                  }}
-                >
-                    <div className="absolute top-1/2 left-1/2 w-2 h-0.5 bg-red-500/50 -translate-x-1/2 -translate-y-1/2"></div>
-                    <div className="absolute top-1/2 left-1/2 w-0.5 h-2 bg-red-500/50 -translate-x-1/2 -translate-y-1/2"></div>
-                </div>
-            )}
+      {showMagnifier && magnifierPos && imageSrc && (
+        <div 
+          className="fixed z-50 pointer-events-none rounded-full border-4 border-primary shadow-2xl overflow-hidden bg-white"
+          style={{
+              left: magnifierPos.x + 20,
+              top: magnifierPos.y + 20,
+              width: 150,
+              height: 150,
+              backgroundImage: `url(${imageSrc})`,
+              backgroundRepeat: 'no-repeat',
+              backgroundSize: `${(imgDimensions?.width || 0) * 2}px ${(imgDimensions?.height || 0) * 2}px`,
+              backgroundPosition: `${magnifierPos.bgX}px ${magnifierPos.bgY}px`
+          }}
+        >
+            <div className="absolute top-1/2 left-1/2 w-4 h-0.5 bg-secondary -translate-x-1/2 -translate-y-1/2"></div>
+            <div className="absolute top-1/2 left-1/2 w-0.5 h-4 bg-secondary -translate-x-1/2 -translate-y-1/2"></div>
+        </div>
+      )}
+
       {/* Sidebar */}
-      <aside className="w-80 bg-white border-r border-gray-200 flex flex-col shadow-xl z-10 h-screen">
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between shrink-0">
-            <h2 className="font-bold text-lg">Tools</h2>
-            <button onClick={onReset} className="text-gray-400 hover:text-red-500">
-                <X size={20} />
+      <aside className="w-80 bg-white border-r-2 border-border flex flex-col z-10 h-screen shadow-2xl">
+        <div className="p-4 border-b-2 border-border flex items-center justify-between shrink-0 bg-white">
+            <h2 className="font-sans font-bold text-xl tracking-tighter text-primary">PROJECT<span className="text-secondary">TOOLS</span></h2>
+            <button onClick={onReset} className="text-muted-foreground hover:text-red-500 transition-colors">
+                <X size={24} strokeWidth={2.5} />
             </button>
         </div>
         
-        <div className="p-4 space-y-4 flex-1 overflow-y-auto min-h-0">
+        <div className="p-4 space-y-6 flex-1 overflow-y-auto min-h-0">
             {/* Calibration & Precision Section */}
             {(!scale || mode === 'calibrate') ? (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-                        <Calculator size={16} /> {mode === 'calibrate' && scale ? 'Recalibrating...' : 'Calibration Needed'}
+                <div className="stencil-box p-4 bg-orange-50 border-secondary/30">
+                    <h3 className="font-mono font-bold text-secondary mb-2 flex items-center gap-2 text-xs uppercase tracking-widest">
+                        <Calculator size={14} /> {mode === 'calibrate' && scale ? 'Recalibrating...' : 'Calibration Required'}
                     </h3>
-                    <p className="text-xs text-blue-700 mb-3">
-                        {mode === 'calibrate' ? 'Draw a new line over a known distance to update the scale.' : 'Draw a line over a known distance to start.'}
+                    <p className="text-xs text-muted-foreground mb-4 font-mono leading-relaxed">
+                        {mode === 'calibrate' ? 'ACTION: Draw reference line on plan.' : 'ACTION: Calibrate scale to begin.'}
                     </p>
                     {mode !== 'calibrate' && (
-                        <button onClick={() => { setMode('calibrate'); }} className={cn("w-full py-2 px-4 rounded-md text-sm font-medium border bg-blue-600 text-white border-blue-600")}>
+                        <button onClick={() => { setMode('calibrate'); }} className="w-full py-2 px-4 text-xs font-bold uppercase tracking-wider bg-secondary text-white border-2 border-secondary hover:bg-white hover:text-secondary transition-all shadow-[4px_4px_0px_#00000020] active:translate-y-[2px] active:shadow-none">
                             Start Calibration
                         </button>
                     )}
@@ -822,70 +523,79 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                     <button 
                         onClick={() => setShowMagnifier(!showMagnifier)} 
                         className={cn(
-                            "flex-1 flex items-center justify-between px-3 py-2 rounded-md text-sm font-medium border transition-all",
+                            "flex-1 flex items-center justify-between px-3 py-2 text-xs font-bold uppercase tracking-wider border-2 transition-all shadow-[2px_2px_0px_#cbd5e1]",
                             showMagnifier 
-                                ? "bg-blue-50 border-blue-200 text-blue-700" 
-                                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                                ? "bg-secondary text-white border-secondary" 
+                                : "bg-white text-primary border-border hover:border-primary"
                         )}
                     >
                         <div className="flex items-center gap-2">
-                            <Search size={16} />
+                            <Search size={14} />
                             <span>Precision</span>
                         </div>
                         <div className={cn(
-                            "w-8 h-4 rounded-full relative transition-colors duration-200 ease-in-out",
-                            showMagnifier ? "bg-blue-600" : "bg-gray-300"
-                        )}>
-                            <div className={cn(
-                                "absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out",
-                                showMagnifier ? "translate-x-4" : "translate-x-0"
-                            )} />
-                        </div>
+                            "w-2 h-2 rounded-full",
+                            showMagnifier ? "bg-white" : "bg-muted-foreground"
+                        )} />
                     </button>
                     <button 
                         onClick={() => { setMode('calibrate'); setCalibrationLine(null); }} 
-                        className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-blue-600 transition-all text-sm font-medium" 
+                        className="flex items-center justify-center px-3 py-2 border-2 border-border bg-white text-muted-foreground hover:text-primary hover:border-primary transition-all text-xs font-bold shadow-[2px_2px_0px_#cbd5e1]" 
                         title="Recalibrate"
                     >
-                        <RefreshCw size={16} />
-                        <span>Recalibrate</span>
+                        <RefreshCw size={14} />
                     </button>
                 </div>
             )}
 
             {/* Mode Selector (Tools Grid) */}
-            <div className="grid grid-cols-3 gap-1 bg-gray-100 p-1 rounded-lg">
-                <button onClick={() => setMode('view')} className={cn("flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-all", mode === 'view' ? "bg-white shadow-sm text-blue-600" : "text-gray-600 hover:text-gray-900")}>
-                    <MousePointer2 size={14} /> Pan
-                </button>
-                 <button onClick={() => setMode('measure')} disabled={!scale} className={cn("flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-all disabled:opacity-50", mode === 'measure' ? "bg-white shadow-sm text-blue-600" : "text-gray-600 hover:text-gray-900")}>
-                    <Ruler size={14} /> Measure
-                </button>
-                <button onClick={() => setMode('area')} disabled={!scale} className={cn("flex items-center justify-center gap-1.5 py-2 rounded-md text-xs font-medium transition-all disabled:opacity-50", mode === 'area' ? "bg-white shadow-sm text-blue-600" : "text-gray-600 hover:text-gray-900")}>
-                    <Square size={14} /> Area
-                </button>
+            <div>
+                 <p className="technical-text mb-2">Operation Mode</p>
+                 <div className="grid grid-cols-3 gap-2">
+                    {[
+                        { id: 'view', label: 'PAN', icon: MousePointer2 },
+                        { id: 'measure', label: 'RULER', icon: Ruler },
+                        { id: 'area', label: 'AREA', icon: Square }
+                    ].map((tool) => (
+                        <button 
+                            key={tool.id}
+                            onClick={() => setMode(tool.id as Mode)} 
+                            disabled={tool.id !== 'view' && !scale}
+                            className={cn(
+                                "flex flex-col items-center justify-center gap-1 py-3 border-2 transition-all",
+                                mode === tool.id 
+                                    ? "bg-primary text-white border-primary shadow-[4px_4px_0px_#cbd5e1] -translate-y-1" 
+                                    : "bg-white text-muted-foreground border-border hover:border-primary hover:text-primary disabled:opacity-50 disabled:hover:border-border"
+                            )}
+                        >
+                            <tool.icon size={18} strokeWidth={2} />
+                            <span className="text-[10px] font-mono font-bold">{tool.label}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {scale !== null && (
                 <>
                     {/* Furniture Tab */}
                     <div className="space-y-2">
-                        <h3 className="font-semibold text-sm text-gray-900 flex items-center gap-2"><Armchair size={14}/> Furniture Library</h3>
+                         <p className="technical-text mb-2">Asset Library</p>
                         <div className="grid grid-cols-2 gap-2">
                             {FURNITURE_CATALOG.map(item => (
-                                <button key={item.type} onClick={() => handleAddFurniture(item)} className="flex flex-col items-center justify-center p-2 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 text-xs gap-1">
-                                    <span className="text-xl">{item.icon}</span>
-                                    <span>{item.name}</span>
+                                <button key={item.type} onClick={() => handleAddFurniture(item)} className="flex items-center p-2 bg-white hover:bg-muted border border-border hover:border-primary transition-colors gap-3 group">
+                                    <span className="text-xl filter grayscale group-hover:grayscale-0 transition-all">{item.icon}</span>
+                                    <span className="text-xs font-mono font-bold text-primary">{item.name}</span>
                                 </button>
                             ))}
                         </div>
                     </div>
 
                     {/* Grouped Items List */}
-                    <div className="space-y-3 pt-2">
+                    <div className="space-y-3 pt-2 border-t-2 border-dashed border-border">
+                        <p className="technical-text mb-2 mt-2">Layer Management</p>
                         {/* Measurements */}
                         <SidebarGroup 
-                            title="Measurements" 
+                            title="Linear" 
                             count={lines.length} 
                             isOpen={isMeasurementsOpen} 
                             onToggle={() => setIsMeasurementsOpen(!isMeasurementsOpen)}
@@ -904,7 +614,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
                         {/* Areas */}
                         <SidebarGroup 
-                            title="Areas" 
+                            title="Zones" 
                             count={polygons.length} 
                             isOpen={isAreasOpen} 
                             onToggle={() => setIsAreasOpen(!isAreasOpen)}
@@ -923,7 +633,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
                         {/* Furniture */}
                         <SidebarGroup 
-                            title="Furniture" 
+                            title="Assets" 
                             count={furniture.length} 
                             isOpen={isFurnitureOpen} 
                             onToggle={() => setIsFurnitureOpen(!isFurnitureOpen)}
@@ -944,7 +654,9 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                         </SidebarGroup>
                         
                         {(lines.length === 0 && polygons.length === 0 && furniture.length === 0) && (
-                            <p className="text-xs text-gray-400 text-center italic py-4">No items yet</p>
+                            <div className="border-2 border-dashed border-border p-4 text-center">
+                                <p className="text-[10px] font-mono text-muted-foreground">NO_DATA_POINTS</p>
+                            </div>
                         )}
                     </div>
                 </>
@@ -953,31 +665,38 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 relative bg-gray-100 flex flex-col" onMouseDown={handleGlobalMouseDown}>
+      <main className="flex-1 relative flex flex-col" onMouseDown={handleGlobalMouseDown}>
         {/* Top Controls */}
-        <div className="absolute top-4 right-4 z-20 flex flex-col gap-4">
-            <div className="flex flex-col gap-2 bg-white/90 backdrop-blur shadow-lg rounded-lg p-2 border border-gray-200">
-                <button onClick={() => transformComponentRef.current?.zoomIn()} className="p-2 hover:bg-gray-100 rounded text-gray-700"><ZoomIn size={20} /></button>
-                <button onClick={() => transformComponentRef.current?.zoomOut()} className="p-2 hover:bg-gray-100 rounded text-gray-700"><ZoomOut size={20} /></button>
-                <button onClick={handleRotate} className="p-2 hover:bg-gray-100 rounded text-gray-700" title="Rotate Image"><RotateCcw size={20} /></button>
+        <div className="absolute top-6 right-6 z-20 flex flex-col gap-4">
+            <div className="stencil-box flex flex-col p-1 gap-1">
+                <button onClick={() => transformComponentRef.current?.zoomIn()} className="p-2 hover:bg-muted text-primary transition-colors"><ZoomIn size={20} strokeWidth={1.5} /></button>
+                <button onClick={() => transformComponentRef.current?.zoomOut()} className="p-2 hover:bg-muted text-primary transition-colors"><ZoomOut size={20} strokeWidth={1.5} /></button>
+                <div className="h-px bg-border my-1" />
+                <button onClick={handleRotate} className="p-2 hover:bg-muted text-primary transition-colors" title="Rotate Image"><RotateCcw size={20} strokeWidth={1.5} /></button>
             </div>
             
-            <div className="flex flex-col gap-2 bg-white/90 backdrop-blur shadow-lg rounded-lg p-2 border border-gray-200">
-                <button onClick={handleSaveProject} className="p-2 hover:bg-gray-100 rounded text-gray-700" title="Save Project"><Save size={20} /></button>
-                <button onClick={handleImportClick} className="p-2 hover:bg-gray-100 rounded text-gray-700" title="Import Project"><FolderOpen size={20} /></button>
+            <div className="stencil-box flex flex-col p-1 gap-1">
+                <button onClick={handleSaveProject} className="p-2 hover:bg-muted text-primary transition-colors" title="Save Project"><Save size={20} strokeWidth={1.5} /></button>
+                <button onClick={handleImportClick} className="p-2 hover:bg-muted text-primary transition-colors" title="Import Project"><FolderOpen size={20} strokeWidth={1.5} /></button>
             </div>
 
-            <div className="bg-blue-600 shadow-lg rounded-lg p-2 border border-blue-700">
-                <button onClick={handleExportImage} className="p-2 hover:bg-blue-700 rounded text-white transition-colors" title="Download Image">
-                    <Download size={20} />
+            <div className="stencil-box bg-primary border-primary flex flex-col p-1">
+                <button onClick={handleExportImage} className="p-2 hover:bg-white/10 text-white transition-colors" title="Download Image">
+                    <Download size={20} strokeWidth={2} />
                 </button>
             </div>
         </div>
 
         {/* Polygon Helper UI */}
         {mode === 'area' && (
-            <div className="absolute top-4 left-4 z-20 bg-white/90 backdrop-blur px-4 py-2 rounded-lg shadow-md text-sm border border-gray-200">
-                <p>Click to add points. <button onClick={finishPolygon} className="text-blue-600 font-bold hover:underline">Click here to Finish</button></p>
+            <div className="absolute top-6 left-6 z-20 stencil-box p-3 flex items-center gap-4 animate-in slide-in-from-top-2">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span className="text-xs font-mono font-bold text-primary">RECORDING_ZONE</span>
+                </div>
+                <button onClick={finishPolygon} className="text-xs font-bold uppercase tracking-wider bg-primary text-white px-3 py-1 hover:bg-primary/90 flex items-center gap-2">
+                    Finish <Check size={12} />
+                </button>
             </div>
         )}
 
@@ -995,7 +714,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                 <TransformComponent wrapperClass="!w-full !h-full" contentClass={cn("!w-full !h-full flex items-center justify-center", mode !== 'view' && "no-pan")}>
                     <div 
                         ref={contentRef}
-                        className="relative shadow-2xl"
+                        className="relative shadow-[0_0_50px_rgba(0,0,0,0.1)]"
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
@@ -1007,127 +726,25 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                             ref={imgRef}
                             src={imageSrc} 
                             alt="House Plan" 
-                            className="max-w-none block select-none"
+                            className="max-w-none block select-none bg-white"
                             onDragStart={(e) => e.preventDefault()}
                             onLoad={(e) => setImgDimensions({ width: e.currentTarget.naturalWidth, height: e.currentTarget.naturalHeight })}
                         />
                         
-                        {/* SVG Layer */}
-                        <svg className="absolute top-0 left-0 w-full h-full pointer-events-none" style={{ zIndex: 10 }}>
-                            {/* Polygons */}
-                            {isAreasVisible && polygons.map(poly => (
-                                <g 
-                                    key={poly.id}
-                                    onMouseEnter={() => setHoveredId(poly.id)}
-                                    onMouseLeave={() => setHoveredId(null)}
-                                    className="pointer-events-auto cursor-pointer"
-                                >
-                                    <polygon 
-                                        points={poly.points.map(p => `${p.x},${p.y}`).join(' ')}
-                                        fill={poly.color} 
-                                        fillOpacity={hoveredId === poly.id ? 0.4 : 0.2} 
-                                        stroke={poly.color} 
-                                        strokeWidth={hoveredId === poly.id ? 4 : 2} 
-                                        vectorEffect="non-scaling-stroke"
-                                    />
-                                    <text 
-                                        x={poly.points.reduce((a,b)=>a+b.x,0)/poly.points.length} 
-                                        y={poly.points.reduce((a,b)=>a+b.y,0)/poly.points.length} 
-                                        textAnchor="middle" fontSize={14} fill="white" stroke="black" strokeWidth={3} paintOrder="stroke" fontWeight="bold"
-                                    >
-                                        {poly.area?.toFixed(2)}
-                                    </text>
-                                </g>
-                            ))}
-                            {/* Current Polygon */}
-                            {mode === 'area' && currentPoly.length > 0 && (
-                                <polygon 
-                                    points={currentPoly.map(p => `${p.x},${p.y}`).join(' ')}
-                                    fill="rgba(16, 185, 129, 0.1)" stroke="#10b981" strokeWidth={2} vectorEffect="non-scaling-stroke"
-                                    strokeDasharray="5,5"
-                                />
-                            )}
-
-                            {/* Lines */}
-                            {isMeasurementsVisible && lines.map((line) => (
-                                <g 
-                                    key={line.id}
-                                    onMouseEnter={() => setHoveredId(line.id)}
-                                    onMouseLeave={() => setHoveredId(null)}
-                                    className="pointer-events-auto cursor-pointer"
-                                >
-                                    <line 
-                                        x1={line.start.x} y1={line.start.y} x2={line.end.x} y2={line.end.y} 
-                                        stroke={line.color} 
-                                        strokeWidth={hoveredId === line.id ? 4 : 2} 
-                                        vectorEffect="non-scaling-stroke" 
-                                    />
-                                    {renderTShapes(line.start, line.end, line.color)}
-                                    {line.length && (
-                                        <g>
-                                            <rect 
-                                                x={(line.start.x + line.end.x) / 2 - 25} 
-                                                y={(line.start.y + line.end.y) / 2 - 12} 
-                                                width={50} height={24} 
-                                                fill="white" fillOpacity={0.9} rx={4}
-                                                stroke={line.color} strokeWidth={1}
-                                            />
-                                            <text 
-                                                x={(line.start.x + line.end.x) / 2} 
-                                                y={(line.start.y + line.end.y) / 2 + 5} 
-                                                textAnchor="middle" 
-                                                fontSize={12} 
-                                                fill="black" 
-                                                fontWeight="bold" 
-                                            >
-                                                {line.length.toFixed(2)}
-                                            </text>
-                                        </g>
-                                    )}
-                                </g>
-                            ))}
-                            
-                            {/* Calibration Line */}
-                            {calibrationLine && mode === 'calibrate' && (
-                                <g>
-                                    <line 
-                                        x1={calibrationLine.start.x} y1={calibrationLine.start.y} 
-                                        x2={calibrationLine.end.x} y2={calibrationLine.end.y} 
-                                        stroke={calibrationLine.color} strokeWidth={2} 
-                                        vectorEffect="non-scaling-stroke" 
-                                    />
-                                    {renderTShapes(calibrationLine.start, calibrationLine.end, calibrationLine.color)}
-                                </g>
-                            )}
-
-                            {/* Current Line */}
-                            {currentLine && currentLine.start && currentLine.end && (
-                                <g>
-                                    <line x1={currentLine.start.x} y1={currentLine.start.y} x2={currentLine.end.x} y2={currentLine.end.y} stroke={mode === 'calibrate' ? '#2563eb' : (currentLine.color || '#dc2626')} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-                                    {renderTShapes(currentLine.start as Point, currentLine.end as Point, mode === 'calibrate' ? '#2563eb' : (currentLine.color || '#dc2626'))}
-                                    {mode === 'measure' && scale && (
-                                        (() => {
-                                            const dx = currentLine.end!.x - currentLine.start!.x;
-                                            const dy = currentLine.end!.y - currentLine.start!.y;
-                                            const pxLen = Math.hypot(dx, dy);
-                                            const realLen = pxLen / scale;
-                                            const offsetX = pxLen > 0 ? (-dy / pxLen) * 15 : 0;
-                                            const offsetY = pxLen > 0 ? (dx / pxLen) * 15 : 0;
-                                            return (
-                                                <text 
-                                                    x={(currentLine.start!.x + currentLine.end!.x) / 2 + offsetX} 
-                                                    y={(currentLine.start!.y + currentLine.end!.y) / 2 + offsetY} 
-                                                    textAnchor="middle" fontSize={12} fill={currentLine.color || '#dc2626'} fontWeight="bold" style={{ textShadow: '0px 0px 3px white' }}
-                                                >
-                                                    {realLen.toFixed(2)}
-                                                </text>
-                                            );
-                                        })()
-                                    )}
-                                </g>
-                            )}
-                        </svg>
-
+                                                {/* SVG Layer */}
+                                                <PlanLayer 
+                                                    lines={lines}
+                                                    polygons={polygons}
+                                                    currentLine={currentLine}
+                                                    currentPoly={currentPoly}
+                                                    mode={mode}
+                                                    scale={scale}
+                                                    calibrationLine={calibrationLine}
+                                                    hoveredId={hoveredId}
+                                                    setHoveredId={setHoveredId}
+                                                    isAreasVisible={isAreasVisible}
+                                                    isMeasurementsVisible={isMeasurementsVisible}
+                                                />
                         {/* Furniture Layer (HTML) */}
                         <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 20 }}>
                             {isFurnitureVisible && furniture.map((item) => (
@@ -1152,23 +769,35 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
       {/* Dialogs */}
       {showCalibrationDialog && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-              <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm">
-                  <h3 className="text-lg font-bold mb-4">Calibrate Scale</h3>
-                  <p className="text-sm text-gray-500 mb-4">
-                      Enter the real-world distance for the line you just drew.
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
+              <div className="bg-white p-6 border-2 border-primary shadow-[8px_8px_0px_#1e293b] w-full max-w-sm">
+                  <h3 className="text-lg font-bold font-mono mb-1 text-primary">SCALE_CALIBRATION</h3>
+                  <div className="h-0.5 w-full bg-border mb-4" />
+                  <p className="text-xs font-mono text-muted-foreground mb-6 uppercase">
+                      Input real-world distance for reference line
                   </p>
-                  <div className="flex gap-2 mb-4">
-                       <input type="number" value={calibrationDistance} onChange={(e) => setCalibrationDistance(e.target.value)} placeholder="Known distance" className="flex-1 px-3 py-2 border border-gray-300 rounded-md" autoFocus />
-                       <select value={unit} onChange={(e) => setUnit(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-md bg-white">
-                           <option value="m">m</option>
-                           <option value="cm">cm</option>
-                           <option value="ft">ft</option>
+                  <div className="flex gap-2 mb-6">
+                       <input 
+                            type="number" 
+                            value={calibrationDistance} 
+                            onChange={(e) => setCalibrationDistance(e.target.value)} 
+                            placeholder="DISTANCE" 
+                            className="flex-1 px-3 py-2 border-b-2 border-border focus:border-secondary outline-none font-mono text-lg font-bold bg-muted/20 text-primary placeholder:text-muted-foreground/50 rounded-none" 
+                            autoFocus 
+                        />
+                       <select 
+                            value={unit} 
+                            onChange={(e) => setUnit(e.target.value)} 
+                            className="px-3 py-2 border-2 border-border font-mono text-sm focus:border-secondary outline-none bg-white"
+                        >
+                           <option value="m">M</option>
+                           <option value="cm">CM</option>
+                           <option value="ft">FT</option>
                        </select>
                   </div>
-                  <div className="flex justify-end gap-2">
-                      <button onClick={() => { setShowCalibrationDialog(false); setCalibrationLine(null); setMode('view'); }} className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">Cancel</button>
-                      <button onClick={handleCalibrate} className="px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700">Apply</button>
+                  <div className="flex justify-end gap-3">
+                      <button onClick={() => { setShowCalibrationDialog(false); setCalibrationLine(null); setMode('view'); }} className="px-4 py-2 text-xs font-bold uppercase hover:bg-muted text-muted-foreground transition-colors">Cancel</button>
+                      <button onClick={handleCalibrate} className="px-6 py-2 text-xs font-bold uppercase text-white bg-primary hover:bg-primary/90 transition-colors shadow-[2px_2px_0px_#cbd5e1] active:translate-y-[1px] active:shadow-none">Apply</button>
                   </div>
               </div>
           </div>
