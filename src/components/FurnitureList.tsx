@@ -1,7 +1,7 @@
 import React from 'react';
 import { FurnitureItem } from './types';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { X, RotateCcw, RotateCw } from 'lucide-react';
 
 interface FurnitureListProps {
   items: FurnitureItem[];
@@ -9,6 +9,7 @@ interface FurnitureListProps {
   onSelect: (id: string) => void;
   onUpdateName: (id: string, name: string) => void;
   onUpdateDim: (id: string, dim: 'width' | 'depth', value: number) => void;
+  onUpdateRotation: (id: string, rotation: number) => void;
   onUpdateColor: (id: string, color: string) => void;
   onDelete: (id: string) => void;
   hoveredId: string | null;
@@ -21,6 +22,7 @@ export const FurnitureList = React.memo(({
   onSelect,
   onUpdateName, 
   onUpdateDim,
+  onUpdateRotation,
   onUpdateColor, 
   onDelete,
   hoveredId,
@@ -57,6 +59,31 @@ export const FurnitureList = React.memo(({
                           <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} className="absolute inset-0 w-full h-full p-0 cursor-pointer opacity-0" />
                            <div className="absolute inset-0" style={{ backgroundColor: item.color }} />
                       </div>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                      <span className="text-muted-foreground font-mono text-[10px]">R:</span>
+                      <button 
+                          onClick={(e) => { e.stopPropagation(); onUpdateRotation(item.id, (item.rotation - 90 + 360) % 360); }}
+                          className="w-6 h-6 flex items-center justify-center bg-white border border-border hover:border-secondary transition-colors"
+                          title="Rotate -90deg"
+                      >
+                          <RotateCcw size={10} />
+                      </button>
+                      <input 
+                          type="number" 
+                          step="15" 
+                          value={item.rotation} 
+                          onChange={(e) => onUpdateRotation(item.id, ((parseFloat(e.target.value) || 0) % 360 + 360) % 360)} 
+                          className="w-12 bg-white border border-border px-1 text-center focus:border-secondary outline-none text-[10px] font-mono"
+                      />
+                      <button 
+                          onClick={(e) => { e.stopPropagation(); onUpdateRotation(item.id, (item.rotation + 90) % 360); }}
+                          className="w-6 h-6 flex items-center justify-center bg-white border border-border hover:border-secondary transition-colors"
+                          title="Rotate +90deg"
+                      >
+                          <RotateCw size={10} />
+                      </button>
+                      <span className="text-[8px] text-muted-foreground font-mono">deg</span>
                   </div>
               </div>
           ))}

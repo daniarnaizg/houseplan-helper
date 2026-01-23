@@ -13,6 +13,7 @@ import { MeasurementsList } from './MeasurementsList';
 import { AreasList } from './AreasList';
 import { FurnitureList } from './FurnitureList';
 import { PlanLayer } from './PlanLayer';
+import { ScaleBar } from './ScaleBar';
 import { usePlanStore } from '@/store/usePlanStore';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
@@ -95,29 +96,45 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   
   // Interaction State
-  // Keyboard Nudging for Furniture
+  // Keyboard Nudging and Rotation for Furniture
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
           const { furniture, selectedFurnitureId, updateFurniture } = usePlanStore.getState();
           if (!selectedFurnitureId) return;
           
-          if (document.activeElement instanceof HTMLInputElement) return;
+          if (document.activeElement instanceof HTMLInputElement || 
+              document.activeElement instanceof HTMLTextAreaElement) return;
 
           let dx = 0;
           let dy = 0;
+          let rotation: number | null = null;
 
           switch (e.key) {
               case 'ArrowUp': dy = -1; break;
               case 'ArrowDown': dy = 1; break;
               case 'ArrowLeft': dx = -1; break;
               case 'ArrowRight': dx = 1; break;
+              case 'r':
+              case 'R':
+                  rotation = 90; // Rotate clockwise
+                  break;
+              case 'e':
+              case 'E':
+                  rotation = -90; // Rotate counter-clockwise
+                  break;
               default: return;
           }
 
           e.preventDefault();
           const item = furniture.find(f => f.id === selectedFurnitureId);
           if (item) {
-              updateFurniture(selectedFurnitureId, { x: item.x + dx, y: item.y + dy });
+              if (rotation !== null) {
+                  updateFurniture(selectedFurnitureId, { 
+                      rotation: (item.rotation + rotation + 360) % 360 
+                  });
+              } else {
+                  updateFurniture(selectedFurnitureId, { x: item.x + dx, y: item.y + dy });
+              }
           }
       };
 
@@ -240,6 +257,10 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   
   const updateFurnitureDim = useCallback((id: string, dim: 'width' | 'depth', value: number) => {
       updateFurniture(id, { [dim]: value });
+  }, [updateFurniture]);
+
+  const updateFurnitureRotation = useCallback((id: string, rotation: number) => {
+      updateFurniture(id, { rotation });
   }, [updateFurniture]);
 
   const updateItemName = useCallback((id: string, name: string) => {
@@ -453,6 +474,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                                 onSelect={setSelectedFurnitureId}
                                 onUpdateName={updateItemName} 
                                 onUpdateDim={updateFurnitureDim}
+                                onUpdateRotation={updateFurnitureRotation}
                                 onUpdateColor={updateItemColor} 
                                 onDelete={deleteItem} 
                                 hoveredId={hoveredId}
@@ -507,6 +529,17 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                 <button onClick={finishPolygon} className="text-xs font-bold uppercase tracking-wider bg-primary text-white px-3 py-1 hover:bg-primary/90 flex items-center gap-2">
                     Finish <Check size={12} />
                 </button>
+            </div>
+        )}
+
+        {/* Scale Bar - Bottom Left */}
+        {scale !== null && (
+            <div className="absolute bottom-6 left-6 z-20 stencil-box p-3 bg-white/95 backdrop-blur-sm">
+                <ScaleBar 
+                    scale={scale} 
+                    zoomScale={zoomScale} 
+                    unit={unit} 
+                />
             </div>
         )}
 
