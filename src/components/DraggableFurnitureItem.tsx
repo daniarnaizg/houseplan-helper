@@ -23,6 +23,17 @@ export const DraggableFurnitureItem: React.FC<DraggableFurnitureItemProps> = ({
   onHover
 }) => {
   const nodeRef = useRef<HTMLDivElement>(null);
+
+  const widthPx = item.width * calibrationScale;
+  const depthPx = item.depth * calibrationScale;
+
+  // Determine if rotation is approximately 90 or 270 degrees
+  // This allows us to swap the bounding box dimensions for better hit testing
+  const normalizedRotation = ((item.rotation % 360) + 360) % 360;
+  const isRotated90or270 = Math.abs(normalizedRotation - 90) < 1 || Math.abs(normalizedRotation - 270) < 1;
+
+  const boxWidth = isRotated90or270 ? depthPx : widthPx;
+  const boxHeight = isRotated90or270 ? widthPx : depthPx;
   
   return (
       <Draggable
@@ -48,18 +59,28 @@ export const DraggableFurnitureItem: React.FC<DraggableFurnitureItemProps> = ({
                   isSelected ? "z-50" : "hover:brightness-95"
               )}
               style={{
-                  width: (item.width * calibrationScale),
-                  height: (item.depth * calibrationScale),
+                  width: boxWidth,
+                  height: boxHeight,
               }}
           >
               <div 
-                  className="flex flex-col items-center justify-center w-full h-full relative"
+                  className="flex flex-col items-center justify-center relative"
                   style={{
                       backgroundColor: isSelected ? 'rgba(2, 132, 199, 0.2)' : 'rgba(255, 255, 255, 0.9)',
                       borderColor: item.color,
                       borderWidth: '2px',
                       borderStyle: isSelected ? 'dashed' : 'solid',
                       boxShadow: isSelected ? '0 0 0 2px white' : 'none',
+                      
+                      // Center the visual representation within the bounding box
+                      position: 'absolute',
+                      width: widthPx,
+                      height: depthPx,
+                      left: '50%',
+                      top: '50%',
+                      marginLeft: -widthPx / 2,
+                      marginTop: -depthPx / 2,
+                      
                       transform: `rotate(${item.rotation}deg)`,
                       transformOrigin: 'center center'
                   }}

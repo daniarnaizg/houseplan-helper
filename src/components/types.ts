@@ -1,4 +1,4 @@
-export type Mode = 'view' | 'calibrate' | 'measure' | 'area';
+export type Mode = 'view' | 'calibrate' | 'measure' | 'area' | 'annotate';
 
 export interface Point {
   x: number;
@@ -36,10 +36,22 @@ export interface FurnitureItem {
   color: string;
 }
 
+export interface Annotation {
+  id: string;
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;      // in pixels (default: 14)
+  color: string;
+  backgroundColor: string | null;  // null = transparent
+  rotation: number;      // degrees (default: 0)
+}
+
 export interface ProjectData {
     lines: Line[];
     polygons: Polygon[];
     furniture: FurnitureItem[];
+    annotations: Annotation[];
     scale: number | null;
     unit: string;
 }

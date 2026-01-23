@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchContentRef } from 'react-zoom-pan-pinch';
-import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw, Eye, EyeOff, Check, ArrowRight, Undo2, Redo2 } from 'lucide-react';
+import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw, Eye, EyeOff, Check, ArrowRight, Undo2, Redo2, Type } from 'lucide-react';
 import Draggable, { DraggableEvent, DraggableData } from 'react-draggable';
 import { toPng } from 'html-to-image';
 import { cn } from '@/lib/utils';
@@ -12,8 +12,11 @@ import { SidebarGroup } from './SidebarGroup';
 import { MeasurementsList } from './MeasurementsList';
 import { AreasList } from './AreasList';
 import { FurnitureList } from './FurnitureList';
+import { AnnotationsList } from './AnnotationsList';
 import { PlanLayer } from './PlanLayer';
+import { AnnotationLayer } from './AnnotationLayer';
 import { ScaleBar } from './ScaleBar';
+import { Annotation } from './types';
 import { usePlanStore } from '@/store/usePlanStore';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
@@ -47,12 +50,13 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   const [imgDimensions, setImgDimensions] = useState<{width: number, height: number} | null>(null);
 
   const {
-      lines, polygons, furniture, scale, unit, mode, selectedFurnitureId,
+      lines, polygons, furniture, annotations, scale, unit, mode, selectedFurnitureId,
       setMode, 
       setFurniture,
       updateLine, removeLine,
       updatePolygon, removePolygon,
       addFurniture, updateFurniture, removeFurniture, setSelectedFurnitureId,
+      addAnnotation, updateAnnotation, removeAnnotation,
       loadProject,
       setUnit
   } = usePlanStore();
@@ -90,10 +94,13 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   const [isMeasurementsOpen, setIsMeasurementsOpen] = useState(true);
   const [isAreasOpen, setIsAreasOpen] = useState(true);
   const [isFurnitureOpen, setIsFurnitureOpen] = useState(true);
+  const [isAnnotationsOpen, setIsAnnotationsOpen] = useState(true);
   const [isMeasurementsVisible, setIsMeasurementsVisible] = useState(true);
   const [isAreasVisible, setIsAreasVisible] = useState(true);
   const [isFurnitureVisible, setIsFurnitureVisible] = useState(true);
+  const [isAnnotationsVisible, setIsAnnotationsVisible] = useState(true);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   
   // Interaction State
   // Keyboard Nudging and Rotation for Furniture
@@ -167,7 +174,8 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   };
 
   const handleSaveProject = () => {
-      const data: ProjectData = { lines, polygons, furniture, scale, unit };
+      const { annotations } = usePlanStore.getState();
+      const data: ProjectData = { lines, polygons, furniture, annotations, scale, unit };
       const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -296,6 +304,33 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       setIsFurnitureVisible(v => !v);
   }, []);
 
+  const toggleAnnotationsVisibility = useCallback((e: React.MouseEvent) => {
+      e.stopPropagation();
+      setIsAnnotationsVisible(v => !v);
+  }, []);
+
+  const handleAnnotationClick = useCallback((e: React.MouseEvent) => {
+      if (mode !== 'annotate' || !imgRef.current) return;
+      
+      const rect = imgRef.current.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / zoomScale;
+      const y = (e.clientY - rect.top) / zoomScale;
+      
+      const newAnnotation: Annotation = {
+          id: Math.random().toString(36).substr(2, 9),
+          text: 'New text',
+          x,
+          y,
+          fontSize: 14,
+          color: '#1e293b',
+          backgroundColor: null,
+          rotation: 0
+      };
+      
+      addAnnotation(newAnnotation);
+      setSelectedAnnotationId(newAnnotation.id);
+  }, [mode, zoomScale, addAnnotation]);
+
   
   return (
     <div className="flex h-screen overflow-hidden bg-grid-pattern">
@@ -379,11 +414,12 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
             {/* Mode Selector (Tools Grid) */}
             <div>
                  <p className="technical-text mb-2">Operation Mode</p>
-                 <div className="grid grid-cols-3 gap-2">
+                 <div className="grid grid-cols-4 gap-2">
                     {[
                         { id: 'view', label: 'PAN', icon: MousePointer2 },
                         { id: 'measure', label: 'RULER', icon: Ruler },
-                        { id: 'area', label: 'AREA', icon: Square }
+                        { id: 'area', label: 'AREA', icon: Square },
+                        { id: 'annotate', label: 'TEXT', icon: Type }
                     ].map((tool) => (
                         <button 
                             key={tool.id}
@@ -481,8 +517,31 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                                 onHover={setHoveredId}
                             />
                         </SidebarGroup>
+
+                        {/* Annotations */}
+                        <SidebarGroup 
+                            title="Notes" 
+                            count={annotations.length} 
+                            isOpen={isAnnotationsOpen} 
+                            onToggle={() => setIsAnnotationsOpen(!isAnnotationsOpen)}
+                            isVisible={isAnnotationsVisible}
+                            onToggleVisibility={toggleAnnotationsVisibility}
+                        >
+                            <AnnotationsList 
+                                items={annotations} 
+                                selectedId={selectedAnnotationId}
+                                onSelect={setSelectedAnnotationId}
+                                onUpdateText={(id, text) => updateAnnotation(id, { text })} 
+                                onUpdateFontSize={(id, fontSize) => updateAnnotation(id, { fontSize })}
+                                onUpdateColor={(id, color) => updateAnnotation(id, { color })}
+                                onUpdateBgColor={(id, backgroundColor) => updateAnnotation(id, { backgroundColor })}
+                                onDelete={removeAnnotation} 
+                                hoveredId={hoveredId}
+                                onHover={setHoveredId}
+                            />
+                        </SidebarGroup>
                         
-                        {(lines.length === 0 && polygons.length === 0 && furniture.length === 0) && (
+                        {(lines.length === 0 && polygons.length === 0 && furniture.length === 0 && annotations.length === 0) && (
                             <div className="border-2 border-dashed border-border p-4 text-center">
                                 <p className="text-[10px] font-mono text-muted-foreground">NO_DATA_POINTS</p>
                             </div>
@@ -561,6 +620,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
+                        onClick={handleAnnotationClick}
                         onTouchStart={(e) => handleMouseDown(e as unknown as React.MouseEvent)} 
                         onTouchMove={(e) => handleMouseMove(e as unknown as React.MouseEvent)}
                         onTouchEnd={handleMouseUp}
@@ -603,6 +663,19 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                                 />
                             ))}
                         </div>
+
+                        {/* Annotation Layer (HTML) */}
+                        <AnnotationLayer
+                            annotations={annotations}
+                            isVisible={isAnnotationsVisible}
+                            selectedId={selectedAnnotationId}
+                            hoveredId={hoveredId}
+                            onSelect={setSelectedAnnotationId}
+                            onHover={setHoveredId}
+                            onUpdate={updateAnnotation}
+                            onDelete={removeAnnotation}
+                            zoomScale={zoomScale}
+                        />
 
                     </div>
                 </TransformComponent>

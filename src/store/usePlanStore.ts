@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { temporal, type TemporalState } from 'zundo';
-import { Line, Polygon, FurnitureItem, ProjectData, Mode } from '@/components/types';
+import { Line, Polygon, FurnitureItem, Annotation, ProjectData, Mode } from '@/components/types';
 
 interface PlanState {
     // Domain Data
     lines: Line[];
     polygons: Polygon[];
     furniture: FurnitureItem[];
+    annotations: Annotation[];
     scale: number | null;
     unit: string;
     
@@ -23,6 +24,7 @@ interface PlanState {
     setLines: (lines: Line[]) => void;
     setPolygons: (polygons: Polygon[]) => void;
     setFurniture: (furniture: FurnitureItem[]) => void;
+    setAnnotations: (annotations: Annotation[]) => void;
 
     // Line Actions
     addLine: (line: Line) => void;
@@ -40,6 +42,11 @@ interface PlanState {
     removeFurniture: (id: string) => void;
     setSelectedFurnitureId: (id: string | null) => void;
 
+    // Annotation Actions
+    addAnnotation: (annotation: Annotation) => void;
+    updateAnnotation: (id: string, updates: Partial<Annotation>) => void;
+    removeAnnotation: (id: string) => void;
+
     // Project Actions
     loadProject: (data: ProjectData) => void;
     reset: () => void;
@@ -51,6 +58,7 @@ export const usePlanStore = create<PlanState>()(
             lines: [],
             polygons: [],
             furniture: [],
+            annotations: [],
             scale: null,
             unit: 'm',
             mode: 'view',
@@ -63,6 +71,7 @@ export const usePlanStore = create<PlanState>()(
             setLines: (lines) => set({ lines }),
             setPolygons: (polygons) => set({ polygons }),
             setFurniture: (furniture) => set({ furniture }),
+            setAnnotations: (annotations) => set({ annotations }),
 
             addLine: (line) => set((state) => ({ lines: [...state.lines, line] })),
             updateLine: (id, updates) => set((state) => ({
@@ -83,10 +92,17 @@ export const usePlanStore = create<PlanState>()(
             removeFurniture: (id) => set((state) => ({ furniture: state.furniture.filter((f) => f.id !== id) })),
             setSelectedFurnitureId: (id) => set({ selectedFurnitureId: id }),
 
+            addAnnotation: (annotation) => set((state) => ({ annotations: [...state.annotations, annotation] })),
+            updateAnnotation: (id, updates) => set((state) => ({
+                annotations: state.annotations.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+            })),
+            removeAnnotation: (id) => set((state) => ({ annotations: state.annotations.filter((a) => a.id !== id) })),
+
             loadProject: (data) => set({
                 lines: data.lines || [],
                 polygons: data.polygons || [],
                 furniture: data.furniture || [],
+                annotations: data.annotations || [],
                 scale: data.scale || null,
                 unit: data.unit || 'm',
             }),
@@ -95,6 +111,7 @@ export const usePlanStore = create<PlanState>()(
                 lines: [],
                 polygons: [],
                 furniture: [],
+                annotations: [],
                 scale: null,
                 unit: 'm',
                 mode: 'view',
@@ -103,8 +120,8 @@ export const usePlanStore = create<PlanState>()(
         }),
         {
             partialize: (state) => {
-                const { lines, polygons, furniture, scale, unit } = state;
-                return { lines, polygons, furniture, scale, unit };
+                const { lines, polygons, furniture, annotations, scale, unit } = state;
+                return { lines, polygons, furniture, annotations, scale, unit };
             },
             limit: 100 // Limit history stack
         }
@@ -114,7 +131,7 @@ export const usePlanStore = create<PlanState>()(
 // Helper hook for using the temporal store
 import { useStore } from 'zustand';
 
-type PlanStatePartial = Pick<PlanState, 'lines' | 'polygons' | 'furniture' | 'scale' | 'unit'>;
+type PlanStatePartial = Pick<PlanState, 'lines' | 'polygons' | 'furniture' | 'annotations' | 'scale' | 'unit'>;
 
 export const useTemporalStore = <T>(
   selector: (state: TemporalState<PlanStatePartial>) => T,
