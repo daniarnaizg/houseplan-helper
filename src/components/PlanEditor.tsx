@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchContentRef } from 'react-zoom-pan-pinch';
-import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw, Eye, EyeOff, Check, ArrowRight } from 'lucide-react';
+import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw, Eye, EyeOff, Check, ArrowRight, Undo2, Redo2 } from 'lucide-react';
 import Draggable, { DraggableEvent, DraggableData } from 'react-draggable';
 import { toPng } from 'html-to-image';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,7 @@ import { FurnitureList } from './FurnitureList';
 import { PlanLayer } from './PlanLayer';
 import { usePlanStore } from '@/store/usePlanStore';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
 
 interface PlanEditorProps {
   file?: File;
@@ -53,6 +54,8 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       addFurniture, updateFurniture, removeFurniture, setSelectedFurnitureId,
       loadProject
   } = usePlanStore();
+
+  const { undo, redo, canUndo, canRedo } = useUndoRedo();
 
   const transformComponentRef = useRef<ReactZoomPanPinchContentRef>(null);
   const contentRef = useRef<HTMLDivElement>(null); 
@@ -479,6 +482,9 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
             </div>
             
             <div className="stencil-box flex flex-col p-1 gap-1">
+                <button onClick={() => undo()} disabled={!canUndo} className="p-2 hover:bg-muted text-primary transition-colors disabled:opacity-30 disabled:hover:bg-transparent" title="Undo (Ctrl+Z)"><Undo2 size={20} strokeWidth={1.5} /></button>
+                <button onClick={() => redo()} disabled={!canRedo} className="p-2 hover:bg-muted text-primary transition-colors disabled:opacity-30 disabled:hover:bg-transparent" title="Redo (Ctrl+Y)"><Redo2 size={20} strokeWidth={1.5} /></button>
+                <div className="h-px bg-border my-1" />
                 <button onClick={handleSaveProject} className="p-2 hover:bg-muted text-primary transition-colors" title="Save Project"><Save size={20} strokeWidth={1.5} /></button>
                 <button onClick={handleImportClick} className="p-2 hover:bg-muted text-primary transition-colors" title="Import Project"><FolderOpen size={20} strokeWidth={1.5} /></button>
             </div>

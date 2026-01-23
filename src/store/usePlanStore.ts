@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { temporal, type TemporalState } from 'zundo';
 import { Line, Polygon, FurnitureItem, ProjectData, Mode } from '@/components/types';
 
 interface PlanState {
@@ -44,57 +45,71 @@ interface PlanState {
     reset: () => void;
 }
 
-export const usePlanStore = create<PlanState>((set) => ({
-    lines: [],
-    polygons: [],
-    furniture: [],
-    scale: null,
-    unit: 'm',
-    mode: 'view',
-    selectedFurnitureId: null,
+export const usePlanStore = create<PlanState>()(
+    temporal(
+        (set) => ({
+            lines: [],
+            polygons: [],
+            furniture: [],
+            scale: null,
+            unit: 'm',
+            mode: 'view',
+            selectedFurnitureId: null,
 
-    setMode: (mode) => set({ mode }),
-    setScale: (scale) => set({ scale }),
-    setUnit: (unit) => set({ unit }),
+            setMode: (mode) => set({ mode }),
+            setScale: (scale) => set({ scale }),
+            setUnit: (unit) => set({ unit }),
 
-    setLines: (lines) => set({ lines }),
-    setPolygons: (polygons) => set({ polygons }),
-    setFurniture: (furniture) => set({ furniture }),
+            setLines: (lines) => set({ lines }),
+            setPolygons: (polygons) => set({ polygons }),
+            setFurniture: (furniture) => set({ furniture }),
 
-    addLine: (line) => set((state) => ({ lines: [...state.lines, line] })),
-    updateLine: (id, updates) => set((state) => ({
-        lines: state.lines.map((l) => (l.id === id ? { ...l, ...updates } : l)),
-    })),
-    removeLine: (id) => set((state) => ({ lines: state.lines.filter((l) => l.id !== id) })),
+            addLine: (line) => set((state) => ({ lines: [...state.lines, line] })),
+            updateLine: (id, updates) => set((state) => ({
+                lines: state.lines.map((l) => (l.id === id ? { ...l, ...updates } : l)),
+            })),
+            removeLine: (id) => set((state) => ({ lines: state.lines.filter((l) => l.id !== id) })),
 
-    addPolygon: (polygon) => set((state) => ({ polygons: [...state.polygons, polygon] })),
-    updatePolygon: (id, updates) => set((state) => ({
-        polygons: state.polygons.map((p) => (p.id === id ? { ...p, ...updates } : p)),
-    })),
-    removePolygon: (id) => set((state) => ({ polygons: state.polygons.filter((p) => p.id !== id) })),
+            addPolygon: (polygon) => set((state) => ({ polygons: [...state.polygons, polygon] })),
+            updatePolygon: (id, updates) => set((state) => ({
+                polygons: state.polygons.map((p) => (p.id === id ? { ...p, ...updates } : p)),
+            })),
+            removePolygon: (id) => set((state) => ({ polygons: state.polygons.filter((p) => p.id !== id) })),
 
-    addFurniture: (item) => set((state) => ({ furniture: [...state.furniture, item] })),
-    updateFurniture: (id, updates) => set((state) => ({
-        furniture: state.furniture.map((f) => (f.id === id ? { ...f, ...updates } : f)),
-    })),
-    removeFurniture: (id) => set((state) => ({ furniture: state.furniture.filter((f) => f.id !== id) })),
-    setSelectedFurnitureId: (id) => set({ selectedFurnitureId: id }),
+            addFurniture: (item) => set((state) => ({ furniture: [...state.furniture, item] })),
+            updateFurniture: (id, updates) => set((state) => ({
+                furniture: state.furniture.map((f) => (f.id === id ? { ...f, ...updates } : f)),
+            })),
+            removeFurniture: (id) => set((state) => ({ furniture: state.furniture.filter((f) => f.id !== id) })),
+            setSelectedFurnitureId: (id) => set({ selectedFurnitureId: id }),
 
-    loadProject: (data) => set({
-        lines: data.lines || [],
-        polygons: data.polygons || [],
-        furniture: data.furniture || [],
-        scale: data.scale || null,
-        unit: data.unit || 'm',
-    }),
-    
-    reset: () => set({
-        lines: [],
-        polygons: [],
-        furniture: [],
-        scale: null,
-        unit: 'm',
-        mode: 'view',
-        selectedFurnitureId: null
-    })
-}));
+            loadProject: (data) => set({
+                lines: data.lines || [],
+                polygons: data.polygons || [],
+                furniture: data.furniture || [],
+                scale: data.scale || null,
+                unit: data.unit || 'm',
+            }),
+            
+            reset: () => set({
+                lines: [],
+                polygons: [],
+                furniture: [],
+                scale: null,
+                unit: 'm',
+                mode: 'view',
+                selectedFurnitureId: null
+            })
+        }),
+        {
+            partialize: (state) => {
+                const { lines, polygons, furniture, scale, unit } = state;
+                return { lines, polygons, furniture, scale, unit };
+            },
+            limit: 100 // Limit history stack
+        }
+    )
+);
+
+// Helper type for using the store with temporal state
+export const useTemporalStore = () => usePlanStore.temporal;
