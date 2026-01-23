@@ -55,7 +55,7 @@ export const DraggableFurnitureItem: React.FC<DraggableFurnitureItemProps> = ({
               onMouseEnter={() => onHover(item.id)}
               onMouseLeave={() => onHover(null)}
               className={cn(
-                  "absolute cursor-move pointer-events-auto transition-all",
+                  "absolute cursor-move pointer-events-auto transition-shadow",
                   isSelected ? "z-50" : "hover:brightness-95"
               )}
               style={{
@@ -70,7 +70,6 @@ export const DraggableFurnitureItem: React.FC<DraggableFurnitureItemProps> = ({
                       borderColor: item.color,
                       borderWidth: '2px',
                       borderStyle: isSelected ? 'dashed' : 'solid',
-                      boxShadow: isSelected ? '0 0 0 2px white' : 'none',
                       
                       // Center the visual representation within the bounding box
                       position: 'absolute',
@@ -95,16 +94,6 @@ export const DraggableFurnitureItem: React.FC<DraggableFurnitureItemProps> = ({
                       <span className="text-[8px] font-mono leading-none pointer-events-none mt-0.5 bg-white/80 px-1 border border-gray-200" style={{ color: '#000' }}>
                           {item.width}m x {item.depth}m
                       </span>
-                  )}
-                  
-                  {/* Corner Handles for visual effect */}
-                  {isSelected && (
-                      <>
-                          <div className="absolute -top-1 -left-1 w-2 h-2 bg-white border border-black" />
-                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-white border border-black" />
-                          <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-white border border-black" />
-                          <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-white border border-black" />
-                      </>
                   )}
               </div>
           </div>

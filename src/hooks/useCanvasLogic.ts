@@ -217,7 +217,7 @@ export function useCanvasLogic({ imgRef, transformComponentRef }: UseCanvasLogic
             id: Math.random().toString(36).substr(2, 9),
             points: currentPoly,
             area: area,
-            unit: 'sq ' + unit,
+            unit: unit + '²',
             name: `Area ${polygons.length + 1}`,
             color: '#10b981'
         };
@@ -240,7 +240,7 @@ export function useCanvasLogic({ imgRef, transformComponentRef }: UseCanvasLogic
             
             setPolygons(polygons.map(p => {
                 const area = calculatePolygonArea(p.points, newScale);
-                return { ...p, area, unit: 'sq ' + unit };
+                return { ...p, area, unit: unit + '²' };
             }));
 
             setScale(newScale);

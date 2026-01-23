@@ -571,7 +571,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                 <button onClick={handleImportClick} className="p-2 hover:bg-muted text-primary transition-colors" title="Import Project"><FolderOpen size={20} strokeWidth={1.5} /></button>
             </div>
 
-            <div className="stencil-box bg-primary border-primary flex flex-col p-1">
+            <div className="bg-secondary border-2 border-secondary flex flex-col p-1 shadow-[4px_4px_0px_#cbd5e1]">
                 <button onClick={handleExportImage} className="p-2 hover:bg-white/10 text-white transition-colors" title="Download Image">
                     <Download size={20} strokeWidth={2} />
                 </button>

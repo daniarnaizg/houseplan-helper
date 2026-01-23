@@ -56,8 +56,8 @@ export const FurnitureList = React.memo(({
                           <input type="number" step="0.1" value={item.depth} onChange={(e) => onUpdateDim(item.id, 'depth', parseFloat(e.target.value))} className="w-10 bg-white border border-border px-1 focus:border-secondary outline-none" />
                       </div>
                       <div className="relative w-3 h-3 border border-border bg-white shrink-0">
-                          <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} className="absolute inset-0 w-full h-full p-0 cursor-pointer opacity-0" />
-                           <div className="absolute inset-0" style={{ backgroundColor: item.color }} />
+                          <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} onClick={(e) => e.stopPropagation()} className="absolute inset-0 w-full h-full p-0 cursor-pointer opacity-0" />
+                           <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: item.color }} />
                       </div>
                   </div>
                   <div className="flex items-center gap-2 mt-2">

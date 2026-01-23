@@ -41,8 +41,8 @@ export const MeasurementsList = React.memo(({
                   </div>
                   <div className="flex items-center justify-between">
                       <div className="relative w-3 h-3 border border-border bg-white">
-                          <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} className="absolute inset-0 w-full h-full p-0 cursor-pointer opacity-0" />
-                          <div className="absolute inset-0" style={{ backgroundColor: item.color }} />
+                          <input type="color" value={item.color} onChange={(e) => onUpdateColor(item.id, e.target.value)} onClick={(e) => e.stopPropagation()} className="absolute inset-0 w-full h-full p-0 cursor-pointer opacity-0" />
+                          <div className="absolute inset-0 pointer-events-none" style={{ backgroundColor: item.color }} />
                       </div>
                       <span className="text-primary font-mono font-bold">
                           {item.length?.toFixed(2)} {item.unit}
