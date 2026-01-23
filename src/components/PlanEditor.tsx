@@ -13,6 +13,7 @@ import { MeasurementsList } from './MeasurementsList';
 import { AreasList } from './AreasList';
 import { FurnitureList } from './FurnitureList';
 import { PlanLayer } from './PlanLayer';
+import { usePlanStore } from '@/store/usePlanStore';
 
 interface PlanEditorProps {
   file?: File;
@@ -41,15 +42,22 @@ const FURNITURE_CATALOG = [
 export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) {
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc || null);
   const [imgDimensions, setImgDimensions] = useState<{width: number, height: number} | null>(null);
-  const [mode, setMode] = useState<Mode>('view');
-  const [scale, setScale] = useState<number | null>(null); 
-  const [unit, setUnit] = useState<string>('m');
-  const [zoomScale, setZoomScale] = useState<number>(1); 
+  const [zoomScale, setZoomScale] = useState<number>(1);
+  const zoomScaleRef = useRef(1);
+
+  useEffect(() => {
+      zoomScaleRef.current = zoomScale;
+  }, [zoomScale]);
   
-  // Data State
-  const [lines, setLines] = useState<Line[]>([]);
-  const [polygons, setPolygons] = useState<Polygon[]>([]);
-  const [furniture, setFurniture] = useState<FurnitureItem[]>([]);
+  const {
+      lines, polygons, furniture, scale, unit, mode, selectedFurnitureId,
+      setMode, setScale, setUnit,
+      setLines, setPolygons, setFurniture,
+      addLine, updateLine, removeLine,
+      addPolygon, updatePolygon, removePolygon,
+      addFurniture, updateFurniture, removeFurniture, setSelectedFurnitureId,
+      loadProject
+  } = usePlanStore();
   
   // UI State
   const [isMeasurementsOpen, setIsMeasurementsOpen] = useState(true);
@@ -66,11 +74,11 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   const [isDrawing, setIsDrawing] = useState(false);
   const [showMagnifier, setShowMagnifier] = useState(false);
   const [magnifierPos, setMagnifierPos] = useState<{x: number, y: number, bgX: number, bgY: number} | null>(null);
-  const [selectedFurnitureId, setSelectedFurnitureId] = useState<string | null>(null);
   
   // Keyboard Nudging for Furniture
   useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
+          const { furniture, selectedFurnitureId, updateFurniture } = usePlanStore.getState();
           if (!selectedFurnitureId) return;
           
           if (document.activeElement instanceof HTMLInputElement) return;
@@ -87,17 +95,15 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
           }
 
           e.preventDefault();
-          setFurniture(prev => prev.map(item => {
-              if (item.id === selectedFurnitureId) {
-                  return { ...item, x: item.x + dx, y: item.y + dy };
-              }
-              return item;
-          }));
+          const item = furniture.find(f => f.id === selectedFurnitureId);
+          if (item) {
+              updateFurniture(selectedFurnitureId, { x: item.x + dx, y: item.y + dy });
+          }
       };
 
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedFurnitureId]);
+  }, []);
   
   // New Calibration State
   const [calibrationLine, setCalibrationLine] = useState<Line | null>(null);
@@ -187,7 +193,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
     const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
     
-    const currentScale = zoomScale; 
+    const currentScale = zoomScaleRef.current; 
     return {
       x: (clientX - rect.left) / currentScale,
       y: (clientY - rect.top) / currentScale
@@ -229,11 +235,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
           try {
               const data = JSON.parse(ev.target?.result as string) as ProjectData;
               if (data) {
-                  if (data.lines) setLines(data.lines);
-                  if (data.polygons) setPolygons(data.polygons);
-                  if (data.furniture) setFurniture(data.furniture);
-                  if (data.scale) setScale(data.scale);
-                  if (data.unit) setUnit(data.unit);
+                  loadProject(data);
                   alert("Project imported successfully!");
               }
           } catch (err) {
@@ -289,18 +291,18 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
           rotation: 0,
           color: item.defaultColor 
       };
-      setFurniture(prev => [...prev, newItem]);
+      addFurniture(newItem);
       setSelectedFurnitureId(newItem.id);
       setMode('view'); 
-  }, [scale]);
+  }, [scale, imgRef, addFurniture, setSelectedFurnitureId, setMode]);
 
   const updateFurniturePos = useCallback((id: string, x: number, y: number) => {
-      setFurniture(prev => prev.map(f => f.id === id ? { ...f, x, y } : f));
-  }, []);
+      updateFurniture(id, { x, y });
+  }, [updateFurniture]);
   
   const updateFurnitureDim = useCallback((id: string, dim: 'width' | 'depth', value: number) => {
-      setFurniture(prev => prev.map(f => f.id === id ? { ...f, [dim]: value } : f));
-  }, []);
+      updateFurniture(id, { [dim]: value });
+  }, [updateFurniture]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1) {
@@ -384,7 +386,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
         const pxLen = calculateDistance(newLine.start, newLine.end);
         newLine.length = pixelsToUnit(pxLen, scale);
         newLine.unit = unit;
-        setLines(prev => [...prev, newLine]);
+        addLine(newLine);
       }
       setCurrentLine(null);
     }
@@ -406,7 +408,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
           name: `Area ${polygons.length + 1}`,
           color: '#10b981'
       };
-      setPolygons(prev => [...prev, newPoly]);
+      addPolygon(newPoly);
       setCurrentPoly([]);
   };
 
@@ -418,12 +420,12 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       const pxLen = calculateDistance(calibrationLine.start, calibrationLine.end);
       const newScale = pxLen / dist;
       
-      setLines(prev => prev.map(l => {
+      setLines(lines.map(l => {
           const lPx = calculateDistance(l.start, l.end);
           return { ...l, length: pixelsToUnit(lPx, newScale), unit };
       }));
       
-      setPolygons(prev => prev.map(p => {
+      setPolygons(polygons.map(p => {
           const area = calculatePolygonArea(p.points, newScale);
           return { ...p, area, unit: 'sq ' + unit };
       }));
@@ -436,22 +438,22 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   };
 
   const updateItemName = useCallback((id: string, name: string) => {
-      setLines(prev => prev.map(l => l.id === id ? { ...l, name } : l));
-      setPolygons(prev => prev.map(p => p.id === id ? { ...p, name } : p));
-      setFurniture(prev => prev.map(f => f.id === id ? { ...f, name } : f));
-  }, []);
+      updateLine(id, { name });
+      updatePolygon(id, { name });
+      updateFurniture(id, { name });
+  }, [updateLine, updatePolygon, updateFurniture]);
 
   const updateItemColor = useCallback((id: string, color: string) => {
-      setLines(prev => prev.map(l => l.id === id ? { ...l, color } : l));
-      setPolygons(prev => prev.map(p => p.id === id ? { ...p, color } : p));
-      setFurniture(prev => prev.map(f => f.id === id ? { ...f, color } : f));
-  }, []);
+      updateLine(id, { color });
+      updatePolygon(id, { color });
+      updateFurniture(id, { color });
+  }, [updateLine, updatePolygon, updateFurniture]);
 
   const deleteItem = useCallback((id: string) => {
-      setLines(prev => prev.filter(l => l.id !== id));
-      setPolygons(prev => prev.filter(p => p.id !== id));
-      setFurniture(prev => prev.filter(f => f.id !== id));
-  }, []);
+      removeLine(id);
+      removePolygon(id);
+      removeFurniture(id);
+  }, [removeLine, removePolygon, removeFurniture]);
 
   const toggleMeasurementsVisibility = useCallback((e: React.MouseEvent) => {
       e.stopPropagation();
