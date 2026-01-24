@@ -2,12 +2,19 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useTranslations } from 'next-intl';
 import { FileUpload } from '@/components/FileUpload';
 import { PlanEditor } from '@/components/PlanEditor';
 
+// Loading component for PDF processor - extracted to avoid hooks rules violation
+function PdfLoading() {
+  const t = useTranslations('pdfProcessor');
+  return <div className="flex h-screen items-center justify-center text-gray-500">{t('loading')}</div>;
+}
+
 const PdfProcessor = dynamic(() => import('@/components/PdfProcessor').then(mod => mod.PdfProcessor), {
   ssr: false,
-  loading: () => <div className="flex h-screen items-center justify-center text-gray-500">Loading PDF Processor...</div>
+  loading: PdfLoading,
 });
 
 export default function Home() {

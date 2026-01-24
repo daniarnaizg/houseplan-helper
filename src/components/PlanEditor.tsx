@@ -3,6 +3,8 @@ import { TransformWrapper, TransformComponent, ReactZoomPanPinchContentRef } fro
 import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, Download, Search, Square, Armchair, FolderOpen, ChevronDown, ChevronRight, RefreshCw, Eye, EyeOff, Check, ArrowRight, Undo2, Redo2, Type } from 'lucide-react';
 import Draggable, { DraggableEvent, DraggableData } from 'react-draggable';
 import { toPng } from 'html-to-image';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Mode, Line, Polygon, FurnitureItem, FurnitureTemplate, Point, ProjectData } from './types';
 import { rotateImage } from '@/lib/imageUtils';
@@ -18,6 +20,7 @@ import { AnnotationLayer } from './AnnotationLayer';
 import { ScaleBar } from './ScaleBar';
 import { FurnitureQuickAccess } from './FurnitureQuickAccess';
 import { FurnitureLibraryModal } from './FurnitureLibraryModal';
+import { LanguageSelector } from './LanguageSelector';
 import { Annotation } from './types';
 import { usePlanStore } from '@/store/usePlanStore';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
@@ -40,6 +43,12 @@ interface PlanEditorProps {
 
 
 export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) {
+  const t = useTranslations('editor');
+  const tTools = useTranslations('tools');
+  const tSidebar = useTranslations('sidebar');
+  const tCommon = useTranslations('common');
+  const tToast = useTranslations('toast');
+
   const [imageSrc, setImageSrc] = useState<string | null>(initialImageSrc || null);
   const [imgDimensions, setImgDimensions] = useState<{width: number, height: number} | null>(null);
 
@@ -194,11 +203,11 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
               const data = JSON.parse(ev.target?.result as string) as ProjectData;
               if (data) {
                   loadProject(data);
-                  alert("Project imported successfully!");
+                  toast.success(tToast('projectImported'));
               }
           } catch (err) {
               console.error(err);
-              alert("Invalid project file.");
+              toast.error(tToast('invalidProject'));
           }
       };
       reader.readAsText(file);
@@ -207,7 +216,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
   const handleExportImage = async () => {
       if (!contentRef.current) {
-          alert("Could not find plan content.");
+          toast.error(tToast('contentNotFound'));
           return;
       }
       try {
@@ -226,13 +235,13 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
           a.click();
       } catch (err) {
           console.error("Export failed", err);
-          alert("Export failed. Please try resetting zoom/pan before exporting.");
+          toast.error(tToast('exportFailed'));
       }
   };
 
   const handleAddFurniture = useCallback((template: FurnitureTemplate) => {
       if (!scale) {
-          alert("Please calibrate the plan first!");
+          toast.warning(tToast('calibrateFirst'));
           return;
       }
       const centerX = imgRef.current ? imgRef.current.width / 2 - (template.width * scale / 2) : 0;
@@ -252,7 +261,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       addFurniture(newItem);
       setSelectedFurnitureId(newItem.id);
       setMode('view'); 
-  }, [scale, imgRef, addFurniture, setSelectedFurnitureId, setMode]);
+  }, [scale, imgRef, addFurniture, setSelectedFurnitureId, setMode, tToast]);
 
   const updateFurniturePos = useCallback((id: string, x: number, y: number) => {
       updateFurniture(id, { x, y });
@@ -353,11 +362,14 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
       {/* Sidebar */}
       <aside className="w-80 bg-white border-r-2 border-border flex flex-col z-10 h-screen shadow-2xl">
-        <div className="p-4 border-b-2 border-border flex items-center justify-between shrink-0 bg-white">
-            <h2 className="font-sans font-bold text-xl tracking-tighter text-primary">PROJECT<span className="text-secondary">TOOLS</span></h2>
-            <button onClick={onReset} className="text-muted-foreground hover:text-red-500 transition-colors">
-                <X size={24} strokeWidth={2.5} />
-            </button>
+        <div className="p-4 border-b-2 border-border flex flex-col gap-3 shrink-0 bg-white">
+            <div className="flex items-center justify-between">
+                <h2 className="font-sans font-bold text-xl tracking-tighter text-primary">{t('projectTools').split('**')[0]}<span className="text-secondary">{t('projectTools').split('**')[1]}</span></h2>
+                <button onClick={onReset} className="text-muted-foreground hover:text-red-500 transition-colors">
+                    <X size={24} strokeWidth={2.5} />
+                </button>
+            </div>
+            <LanguageSelector />
         </div>
         
         <div className="p-4 space-y-6 flex-1 overflow-y-auto min-h-0">
@@ -365,14 +377,14 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
             {(!scale || mode === 'calibrate') ? (
                 <div className="stencil-box p-4 bg-orange-50 border-secondary/30">
                     <h3 className="font-mono font-bold text-secondary mb-2 flex items-center gap-2 text-xs uppercase tracking-widest">
-                        <Calculator size={14} /> {mode === 'calibrate' && scale ? 'Recalibrating...' : 'Calibration Required'}
+                        <Calculator size={14} /> {mode === 'calibrate' && scale ? t('recalibrating') : t('calibrationRequired')}
                     </h3>
                     <p className="text-xs text-muted-foreground mb-4 font-mono leading-relaxed">
-                        {mode === 'calibrate' ? 'ACTION: Draw reference line on plan.' : 'ACTION: Calibrate scale to begin.'}
+                        {mode === 'calibrate' ? t('actionDraw') : t('actionCalibrate')}
                     </p>
                     {mode !== 'calibrate' && (
                         <button onClick={() => { setMode('calibrate'); }} className="w-full py-2 px-4 text-xs font-bold uppercase tracking-wider bg-secondary text-white border-2 border-secondary hover:bg-white hover:text-secondary transition-all shadow-[4px_4px_0px_#00000020] active:translate-y-[2px] active:shadow-none">
-                            Start Calibration
+                            {t('startCalibration')}
                         </button>
                     )}
                 </div>
@@ -389,7 +401,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                     >
                         <div className="flex items-center gap-2">
                             <Search size={14} />
-                            <span>Precision</span>
+                            <span>{t('precision')}</span>
                         </div>
                         <div className={cn(
                             "w-2 h-2 rounded-full",
@@ -408,13 +420,13 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
             {/* Mode Selector (Tools Grid) */}
             <div>
-                 <p className="technical-text mb-2">Operation Mode</p>
+                 <p className="technical-text mb-2">{t('operationMode')}</p>
                  <div className="grid grid-cols-4 gap-2">
                     {[
-                        { id: 'view', label: 'PAN', icon: MousePointer2 },
-                        { id: 'measure', label: 'RULER', icon: Ruler },
-                        { id: 'area', label: 'AREA', icon: Square },
-                        { id: 'annotate', label: 'TEXT', icon: Type }
+                        { id: 'view', label: tTools('pan'), icon: MousePointer2 },
+                        { id: 'measure', label: tTools('ruler'), icon: Ruler },
+                        { id: 'area', label: tTools('area'), icon: Square },
+                        { id: 'annotate', label: tTools('text'), icon: Type }
                     ].map((tool) => (
                         <button 
                             key={tool.id}
@@ -438,7 +450,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                 <>
                     {/* Furniture Library */}
                     <div className="space-y-2">
-                         <p className="technical-text mb-2">Asset Library</p>
+                         <p className="technical-text mb-2">{t('assetLibrary')}</p>
                         <FurnitureQuickAccess
                             onSelectTemplate={handleAddFurniture}
                             onOpenLibrary={() => setIsLibraryOpen(true)}
@@ -448,10 +460,10 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
                     {/* Grouped Items List */}
                     <div className="space-y-3 pt-2 border-t-2 border-dashed border-border">
-                        <p className="technical-text mb-2 mt-2">Layer Management</p>
+                        <p className="technical-text mb-2 mt-2">{t('layerManagement')}</p>
                         {/* Measurements */}
                         <SidebarGroup 
-                            title="Linear" 
+                            title={tSidebar('linear')} 
                             count={lines.length} 
                             isOpen={isMeasurementsOpen} 
                             onToggle={() => setIsMeasurementsOpen(!isMeasurementsOpen)}
@@ -470,7 +482,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
                         {/* Areas */}
                         <SidebarGroup 
-                            title="Zones" 
+                            title={tSidebar('zones')} 
                             count={polygons.length} 
                             isOpen={isAreasOpen} 
                             onToggle={() => setIsAreasOpen(!isAreasOpen)}
@@ -489,7 +501,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
                         {/* Furniture */}
                         <SidebarGroup 
-                            title="Assets" 
+                            title={tSidebar('assets')} 
                             count={furniture.length} 
                             isOpen={isFurnitureOpen} 
                             onToggle={() => setIsFurnitureOpen(!isFurnitureOpen)}
@@ -512,7 +524,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
                         {/* Annotations */}
                         <SidebarGroup 
-                            title="Notes" 
+                            title={tSidebar('notes')} 
                             count={annotations.length} 
                             isOpen={isAnnotationsOpen} 
                             onToggle={() => setIsAnnotationsOpen(!isAnnotationsOpen)}
@@ -535,7 +547,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                         
                         {(lines.length === 0 && polygons.length === 0 && furniture.length === 0 && annotations.length === 0) && (
                             <div className="border-2 border-dashed border-border p-4 text-center">
-                                <p className="text-[10px] font-mono text-muted-foreground">NO_DATA_POINTS</p>
+                                <p className="text-[10px] font-mono text-muted-foreground">{t('noDataPoints')}</p>
                             </div>
                         )}
                     </div>
@@ -575,10 +587,10 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
             <div className="absolute top-6 left-6 z-20 stencil-box p-3 flex items-center gap-4 animate-in slide-in-from-top-2">
                 <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-xs font-mono font-bold text-primary">RECORDING_ZONE</span>
+                    <span className="text-xs font-mono font-bold text-primary">{t('recordingZone')}</span>
                 </div>
                 <button onClick={finishPolygon} className="text-xs font-bold uppercase tracking-wider bg-primary text-white px-3 py-1 hover:bg-primary/90 flex items-center gap-2">
-                    Finish <Check size={12} />
+                    {t('finish')} <Check size={12} />
                 </button>
             </div>
         )}
@@ -679,10 +691,10 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       {showCalibrationDialog && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-[2px]">
               <div className="bg-white p-6 border-2 border-primary shadow-[8px_8px_0px_#1e293b] w-full max-w-sm">
-                  <h3 className="text-lg font-bold font-mono mb-1 text-primary">SCALE_CALIBRATION</h3>
+                  <h3 className="text-lg font-bold font-mono mb-1 text-primary">{t('scaleCalibration')}</h3>
                   <div className="h-0.5 w-full bg-border mb-4" />
                   <p className="text-xs font-mono text-muted-foreground mb-6 uppercase">
-                      Input real-world distance for reference line
+                      {t('inputDistance')}
                   </p>
                   <div className="flex gap-2 mb-6">
                        <input 
@@ -704,8 +716,8 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
                        </select>
                   </div>
                   <div className="flex justify-end gap-3">
-                      <button onClick={() => { setShowCalibrationDialog(false); setCalibrationLine(null); setMode('view'); }} className="px-4 py-2 text-xs font-bold uppercase hover:bg-muted text-muted-foreground transition-colors">Cancel</button>
-                      <button onClick={handleCalibrate} className="px-6 py-2 text-xs font-bold uppercase text-white bg-primary hover:bg-primary/90 transition-colors shadow-[2px_2px_0px_#cbd5e1] active:translate-y-[1px] active:shadow-none">Apply</button>
+                      <button onClick={() => { setShowCalibrationDialog(false); setCalibrationLine(null); setMode('view'); }} className="px-4 py-2 text-xs font-bold uppercase hover:bg-muted text-muted-foreground transition-colors">{tCommon('cancel')}</button>
+                      <button onClick={handleCalibrate} className="px-6 py-2 text-xs font-bold uppercase text-white bg-primary hover:bg-primary/90 transition-colors shadow-[2px_2px_0px_#cbd5e1] active:translate-y-[1px] active:shadow-none">{tCommon('apply')}</button>
                   </div>
               </div>
           </div>

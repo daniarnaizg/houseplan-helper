@@ -1,13 +1,18 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileImage, Ruler, DraftingCompass, PencilRuler } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { LanguageSelector } from './LanguageSelector';
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
 }
 
 export function FileUpload({ onFileSelect }: FileUploadProps) {
+  const t = useTranslations('fileUpload');
+  const titleParts = t('title').split('**');
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles?.[0]) {
       onFileSelect(acceptedFiles[0]);
@@ -25,6 +30,11 @@ export function FileUpload({ onFileSelect }: FileUploadProps) {
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-screen p-4 bg-grid-pattern overflow-hidden">
+      {/* Language Selector - Top Right */}
+      <div className="absolute top-4 right-4 z-20">
+        <LanguageSelector />
+      </div>
+
       {/* Decorative Technical Elements */}
       <div className="absolute top-8 left-8 text-border opacity-50">
         <Ruler className="w-12 h-12" />
@@ -42,10 +52,10 @@ export function FileUpload({ onFileSelect }: FileUploadProps) {
             <span className="font-mono text-xs font-semibold text-foreground tracking-wider">V 2.0 // ARCHITECT_MODE</span>
           </div>
           <h1 className="text-5xl font-bold tracking-tighter text-primary font-sans">
-            HousePlan <span className="text-secondary">Helper</span>
+            {titleParts[0]}<span className="text-secondary">{titleParts[1]}</span>
           </h1>
           <p className="text-muted-foreground font-mono text-sm max-w-sm mx-auto">
-            INITIALIZE PROJECT &gt; UPLOAD BLUEPRINT &gt; CALIBRATE SCALE
+            {t('subtitle')}
           </p>
         </div>
 
@@ -82,18 +92,18 @@ export function FileUpload({ onFileSelect }: FileUploadProps) {
             
             <div className="space-y-2">
               <p className="font-mono text-lg font-bold text-foreground">
-                {isDragActive ? "DROP_FILE_HERE" : "UPLOAD_SOURCE_FILE"}
+                {isDragActive ? t('dropHere') : t('uploadSource')}
               </p>
               <p className="text-xs font-mono text-muted-foreground uppercase tracking-widest">
-                Supported Formats: PDF, JPG, PNG
+                {t('supportedFormats')}
               </p>
             </div>
           </div>
         </div>
 
         <div className="flex justify-between items-center px-4 font-mono text-xs text-muted-foreground">
-          <span>SYSTEM_READY</span>
-          <span>WAITING_FOR_INPUT...</span>
+          <span>{t('systemReady')}</span>
+          <span>{t('waitingForInput')}</span>
         </div>
       </div>
     </div>

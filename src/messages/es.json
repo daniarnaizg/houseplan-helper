@@ -1,0 +1,162 @@
+{
+  "common": {
+    "apply": "Aplicar",
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "delete": "Eliminar",
+    "save": "Guardar",
+    "close": "Cerrar",
+    "loading": "Cargando..."
+  },
+  "app": {
+    "title": "HousePlan Helper",
+    "description": "Herramienta interactiva de medición de planos"
+  },
+  "fileUpload": {
+    "title": "HousePlan **Helper**",
+    "subtitle": "INICIAR PROYECTO > SUBIR PLANO > CALIBRAR ESCALA",
+    "uploadSource": "SUBIR_ARCHIVO",
+    "dropHere": "SOLTAR_ARCHIVO_AQUÍ",
+    "supportedFormats": "Formatos soportados: PDF, JPG, PNG",
+    "systemReady": "SISTEMA_LISTO",
+    "waitingForInput": "ESPERANDO_ENTRADA..."
+  },
+  "pdfProcessor": {
+    "title": "Importar PDF",
+    "pageOf": "Página {current} de {total}",
+    "importSelection": "Importar Selección",
+    "loadFailed": "Error al cargar el PDF.",
+    "loading": "Cargando procesador de PDF..."
+  },
+  "editor": {
+    "projectTools": "HERRAMIENTAS**PROYECTO**",
+    "startCalibration": "Iniciar Calibración",
+    "calibrationRequired": "Calibración Requerida",
+    "calibrationSet": "Escala Configurada",
+    "operationMode": "Modo de Operación",
+    "layerManagement": "Gestión de Capas",
+    "assetLibrary": "Biblioteca de Recursos",
+    "scaleCalibration": "CALIBRACIÓN_ESCALA",
+    "noDataPoints": "SIN_DATOS",
+    "enterDistance": "Ingrese la distancia real:",
+    "measurementPoints": "Puntos de medición:",
+    "pixelDistance": "Distancia en píxeles:",
+    "measuredLength": "Longitud medida:",
+    "calibrate": "CALIBRAR",
+    "clickTwoPoints": "Haga clic en dos puntos del plano para establecer la escala.",
+    "point1": "Punto 1",
+    "point2": "Punto 2",
+    "set": "Establecer",
+    "resetProject": "Reiniciar Proyecto",
+    "importProject": "Importar Proyecto",
+    "exportProject": "Exportar Proyecto",
+    "exportImage": "Exportar Imagen",
+    "recalibrating": "Recalibrando...",
+    "actionDraw": "ACCIÓN: Dibuje línea de referencia en el plano.",
+    "actionCalibrate": "ACCIÓN: Calibre la escala para comenzar.",
+    "precision": "Precisión",
+    "recordingZone": "GRABANDO_ZONA",
+    "finish": "Finalizar",
+    "inputDistance": "Ingrese la distancia real para la línea de referencia"
+  },
+  "tools": {
+    "pan": "MOVER",
+    "ruler": "REGLA",
+    "area": "ÁREA",
+    "text": "TEXTO"
+  },
+  "sidebar": {
+    "linear": "Lineal",
+    "zones": "Zonas",
+    "assets": "Recursos",
+    "notes": "Notas",
+    "hideLayer": "Ocultar Capa",
+    "showLayer": "Mostrar Capa"
+  },
+  "furniture": {
+    "library": "Biblioteca de Muebles",
+    "search": "Buscar muebles...",
+    "createCustom": "Crear Elemento Personalizado",
+    "itemName": "Nombre del elemento...",
+    "width": "ANCHO ({unit})",
+    "depth": "FONDO ({unit})",
+    "color": "COLOR",
+    "icon": "ICONO",
+    "rotateLeft": "Rotar -90°",
+    "rotateRight": "Rotar +90°",
+    "recent": "Recientes",
+    "categories": {
+      "bedroom": "Dormitorio",
+      "living": "Sala de Estar",
+      "kitchen": "Cocina/Comedor",
+      "office": "Oficina",
+      "bathroom": "Baño",
+      "custom": "Personalizado"
+    },
+    "items": {
+      "bed-single": "Cama Individual",
+      "bed-double": "Cama Doble",
+      "bed-queen": "Cama Queen",
+      "bed-king": "Cama King",
+      "wardrobe": "Armario",
+      "nightstand": "Mesita de Noche",
+      "sofa-2seat": "Sofá 2 Plazas",
+      "sofa-3seat": "Sofá 3 Plazas",
+      "armchair": "Sillón",
+      "coffee-table": "Mesa de Centro",
+      "tv-stand": "Mueble de TV",
+      "dining-table-4": "Mesa Comedor (4)",
+      "dining-table-6": "Mesa Comedor (6)",
+      "dining-chair": "Silla de Comedor",
+      "fridge": "Refrigerador",
+      "stove": "Cocina/Horno",
+      "desk-small": "Escritorio Pequeño",
+      "desk-large": "Escritorio Grande",
+      "office-chair": "Silla de Oficina",
+      "bookshelf": "Estantería",
+      "toilet": "Inodoro",
+      "bathtub": "Bañera",
+      "shower": "Ducha",
+      "sink-bathroom": "Lavabo",
+      "custom": "Personalizado"
+    }
+  },
+  "annotations": {
+    "size": "Tamaño:",
+    "enterText": "Ingrese texto...",
+    "clear": "LIM",
+    "textColor": "Color de Texto",
+    "backgroundColor": "Color de Fondo",
+    "removeBackground": "Quitar fondo"
+  },
+  "measurements": {
+    "width": "A:",
+    "depth": "F:",
+    "rotation": "R:",
+    "area": "Área:",
+    "total": "Total:"
+  },
+  "toast": {
+    "calibrateFirst": "¡Por favor, calibre el plano primero!",
+    "projectImported": "¡Proyecto importado exitosamente!",
+    "invalidProject": "Archivo de proyecto inválido.",
+    "contentNotFound": "No se pudo encontrar el contenido del plano.",
+    "exportFailed": "Error al exportar. Intente restablecer el zoom/pan antes de exportar."
+  },
+  "units": {
+    "meters": "m",
+    "centimeters": "cm",
+    "feet": "ft",
+    "inches": "in",
+    "degrees": "°",
+    "pixels": "px",
+    "squareMeters": "m²",
+    "squareFeet": "ft²"
+  },
+  "settings": {
+    "language": "Idioma",
+    "units": "Unidades de Medida",
+    "metric": "Métrico (m, cm)",
+    "imperial": "Imperial (ft, in)"
+  }
+}

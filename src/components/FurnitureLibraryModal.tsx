@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { FurnitureTemplate } from './types';
 import { useFurnitureLibraryStore, FURNITURE_CATEGORIES, BUILT_IN_TEMPLATES } from '@/store/useFurnitureLibraryStore';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,9 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
     onClose,
     onSelectTemplate
 }) => {
+    const t = useTranslations('furniture');
+    const tCommon = useTranslations('common');
+    
     const { 
         customTemplates,
         addTemplate, 
@@ -94,6 +98,15 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
 
     const EMOJI_OPTIONS = ['📦', '🪑', '🛏️', '🛋️', '🚪', '📺', '🖥️', '💺', '📚', '🪵', '🧊', '🍳', '🚽', '🛁', '🚿', '🚰', '🪴', '💡', '🖼️', '⭐'];
 
+    // Helper function to get translated name for a template
+    const getTranslatedName = useCallback((template: FurnitureTemplate) => {
+        // For built-in templates, use translation; for custom templates, use the name directly
+        if (template.isBuiltIn) {
+            return t(`items.${template.id}`);
+        }
+        return template.name;
+    }, [t]);
+
     // Handle Escape key to close modal
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -120,7 +133,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
             <div className="bg-white w-full max-w-2xl max-h-[80vh] flex flex-col border-2 border-border shadow-[8px_8px_0px_#00000020]">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b-2 border-border">
-                    <h2 id="furniture-library-title" className="text-sm font-bold uppercase tracking-wider">Furniture Library</h2>
+                    <h2 id="furniture-library-title" className="text-sm font-bold uppercase tracking-wider">{t('library')}</h2>
                     <button type="button" onClick={onClose} className="p-1 hover:bg-muted" aria-label="Close">
                         <X size={18} />
                     </button>
@@ -134,7 +147,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Search furniture..."
+                            placeholder={t('search')}
                             className="w-full pl-8 pr-3 py-2 text-xs font-mono border border-border focus:border-secondary outline-none"
                         />
                     </div>
@@ -153,6 +166,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                                     <TemplateCard
                                         key={template.id}
                                         template={template}
+                                        translatedName={getTranslatedName(template)}
                                         onSelect={handleSelect}
                                         onDuplicate={duplicateTemplate}
                                         onDelete={removeTemplate}
@@ -175,7 +189,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                                     >
                                         <div className="flex items-center gap-2">
                                             <span>{category.icon}</span>
-                                            <span className="text-[10px] font-mono font-bold uppercase">{category.name}</span>
+                                            <span className="text-[10px] font-mono font-bold uppercase">{t(`categories.${category.id}`)}</span>
                                             <span className="text-[9px] text-muted-foreground">({templates.length})</span>
                                         </div>
                                         {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
@@ -187,6 +201,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                                                 <TemplateCard
                                                     key={template.id}
                                                     template={template}
+                                                    translatedName={getTranslatedName(template)}
                                                     onSelect={handleSelect}
                                                     onDuplicate={duplicateTemplate}
                                                     onDelete={removeTemplate}
@@ -209,7 +224,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                             className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold uppercase tracking-wider bg-white text-primary border-2 border-border hover:border-primary transition-all"
                         >
                             <Plus size={14} />
-                            Create Custom Item
+                            {t('createCustom')}
                         </button>
                     ) : (
                         <div className="space-y-3">
@@ -218,7 +233,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                                     type="text"
                                     value={formData.name}
                                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                    placeholder="Item name..."
+                                    placeholder={t('itemName')}
                                     className="flex-1 px-2 py-1 text-xs font-mono border border-border focus:border-secondary outline-none"
                                 />
                                 <select
@@ -227,14 +242,14 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                                     className="px-2 py-1 text-xs font-mono border border-border focus:border-secondary outline-none"
                                 >
                                     {FURNITURE_CATEGORIES.map(cat => (
-                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                        <option key={cat.id} value={cat.id}>{t(`categories.${cat.id}`)}</option>
                                     ))}
                                 </select>
                             </div>
                             
                             <div className="flex gap-2">
                                 <div className="flex-1">
-                                    <label className="text-[9px] text-muted-foreground font-mono">WIDTH (m)</label>
+                                    <label className="text-[9px] text-muted-foreground font-mono">{t('width', { unit: 'm' })}</label>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -245,7 +260,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                                     />
                                 </div>
                                 <div className="flex-1">
-                                    <label className="text-[9px] text-muted-foreground font-mono">DEPTH (m)</label>
+                                    <label className="text-[9px] text-muted-foreground font-mono">{t('depth', { unit: 'm' })}</label>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -256,7 +271,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[9px] text-muted-foreground font-mono">COLOR</label>
+                                    <label className="text-[9px] text-muted-foreground font-mono">{t('color')}</label>
                                     <input
                                         type="color"
                                         value={formData.defaultColor}
@@ -267,7 +282,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                             </div>
                             
                             <div>
-                                <label className="text-[9px] text-muted-foreground font-mono">ICON</label>
+                                <label className="text-[9px] text-muted-foreground font-mono">{t('icon')}</label>
                                 <div className="flex flex-wrap gap-1 mt-1">
                                     {EMOJI_OPTIONS.map(emoji => (
                                         <button
@@ -293,7 +308,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                                     onClick={() => setShowCreateForm(false)}
                                     className="px-3 py-1 text-[10px] font-mono text-muted-foreground hover:text-primary"
                                 >
-                                    Cancel
+                                    {tCommon('cancel')}
                                 </button>
                                 <button
                                     type="button"
@@ -301,7 +316,7 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
                                     disabled={!formData.name.trim()}
                                     className="px-3 py-1 text-[10px] font-mono font-bold bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
                                 >
-                                    Create
+                                    {tCommon('create')}
                                 </button>
                             </div>
                         </div>
@@ -315,12 +330,13 @@ export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
 // Template Card Component
 interface TemplateCardProps {
     template: FurnitureTemplate;
+    translatedName: string;
     onSelect: (template: FurnitureTemplate) => void;
     onDuplicate: (id: string) => void;
     onDelete: (id: string) => void;
 }
 
-const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect, onDuplicate, onDelete }) => {
+const TemplateCard: React.FC<TemplateCardProps> = ({ template, translatedName, onSelect, onDuplicate, onDelete }) => {
     return (
         <div className="group relative">
             <button
@@ -333,7 +349,7 @@ const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect, onDupli
                 </span>
                 <div className="flex-1 min-w-0">
                     <span className="text-[10px] font-mono font-bold text-primary block truncate">
-                        {template.name}
+                        {translatedName}
                     </span>
                     <span className="text-[8px] text-muted-foreground font-mono">
                         {template.width}x{template.depth}m

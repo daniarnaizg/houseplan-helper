@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslations } from 'next-intl';
 import { FurnitureTemplate } from './types';
 import { useFurnitureLibraryStore } from '@/store/useFurnitureLibraryStore';
 import { cn } from '@/lib/utils';
@@ -15,6 +16,7 @@ export const FurnitureQuickAccess: React.FC<FurnitureQuickAccessProps> = ({
     onOpenLibrary,
     isDisabled
 }) => {
+    const t = useTranslations('furniture');
     const { getRecentTemplates, addToRecent } = useFurnitureLibraryStore();
     const recentTemplates = getRecentTemplates();
 
@@ -23,12 +25,21 @@ export const FurnitureQuickAccess: React.FC<FurnitureQuickAccessProps> = ({
         onSelectTemplate(template);
     };
 
+    // Helper function to get translated name for a template
+    const getTranslatedName = (template: FurnitureTemplate) => {
+        // For built-in templates, use translation; for custom templates, use the name directly
+        if (template.isBuiltIn) {
+            return t(`items.${template.id}`);
+        }
+        return template.name;
+    };
+
     return (
         <div className="space-y-2">
             {/* Recent Items */}
             {recentTemplates.length > 0 && (
                 <div className="space-y-1">
-                    <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Recent</p>
+                    <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{t('recent')}</p>
                     <div className="grid grid-cols-2 gap-1">
                         {recentTemplates.map(template => (
                             <button
@@ -45,7 +56,7 @@ export const FurnitureQuickAccess: React.FC<FurnitureQuickAccessProps> = ({
                                 </span>
                                 <div className="flex-1 min-w-0 text-left">
                                     <span className="text-[10px] font-mono font-bold text-primary block truncate">
-                                        {template.name}
+                                        {getTranslatedName(template)}
                                     </span>
                                     <span className="text-[8px] text-muted-foreground font-mono">
                                         {template.width}x{template.depth}m
@@ -68,7 +79,7 @@ export const FurnitureQuickAccess: React.FC<FurnitureQuickAccessProps> = ({
                 )}
             >
                 <Library size={14} />
-                {recentTemplates.length > 0 ? 'Browse All Furniture' : 'Open Furniture Library'}
+                {t('library')}
             </button>
         </div>
     );

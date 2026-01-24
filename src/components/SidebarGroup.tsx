@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronDown, ChevronRight, Eye, EyeOff } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface SidebarGroupProps { 
     title: string;
@@ -20,6 +21,7 @@ export const SidebarGroup: React.FC<SidebarGroupProps> = ({
     isVisible,
     onToggleVisibility
 }) => {
+    const t = useTranslations('sidebar');
     if (count === 0) return null;
     return (
         <div className="border-2 border-border bg-white mb-2">
@@ -35,7 +37,7 @@ export const SidebarGroup: React.FC<SidebarGroupProps> = ({
                 <button 
                     onClick={onToggleVisibility}
                     className="p-1 text-muted-foreground hover:text-primary hover:bg-white border border-transparent hover:border-border transition-all"
-                    title={isVisible ? "Hide Layer" : "Show Layer"}
+                    title={isVisible ? t('hideLayer') : t('showLayer')}
                 >
                     {isVisible ? <Eye size={14} /> : <EyeOff size={14} />}
                 </button>

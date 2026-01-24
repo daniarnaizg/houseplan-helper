@@ -2,6 +2,7 @@ import React from 'react';
 import { Annotation } from './types';
 import { cn } from '@/lib/utils';
 import { X, Type } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface AnnotationsListProps {
     items: Annotation[];
@@ -30,6 +31,7 @@ export const AnnotationsList = React.memo(({
     hoveredId,
     onHover
 }: AnnotationsListProps) => {
+    const t = useTranslations('annotations');
     return (
         <>
             {items.map(item => (
@@ -54,7 +56,7 @@ export const AnnotationsList = React.memo(({
                                 type="text"
                                 value={item.text}
                                 onChange={(e) => onUpdateText(item.id, e.target.value)}
-                                placeholder="Enter text..."
+                                placeholder={t('enterText')}
                                 className="bg-transparent font-mono text-primary focus:outline-none border-b border-transparent focus:border-secondary flex-1 min-w-0 text-[10px] truncate"
                             />
                         </div>
@@ -69,7 +71,7 @@ export const AnnotationsList = React.memo(({
                     <div className="flex justify-between items-center mt-2 gap-2">
                         {/* Font Size Selector */}
                         <div className="flex items-center gap-1">
-                            <span className="text-muted-foreground font-mono text-[10px]">Size:</span>
+                            <span className="text-muted-foreground font-mono text-[10px]">{t('size')}</span>
                             <select
                                 value={item.fontSize}
                                 onChange={(e) => onUpdateFontSize(item.id, parseInt(e.target.value))}
@@ -85,7 +87,7 @@ export const AnnotationsList = React.memo(({
                         {/* Color Pickers */}
                         <div className="flex items-center gap-2">
                             {/* Text Color */}
-                            <div className="relative w-4 h-4 border border-border bg-white shrink-0" title="Text Color">
+                            <div className="relative w-4 h-4 border border-border bg-white shrink-0" title={t('textColor')}>
                                 <input
                                     type="color"
                                     value={item.color}
@@ -98,7 +100,7 @@ export const AnnotationsList = React.memo(({
                             </div>
                             
                             {/* Background Color */}
-                            <div className="relative w-4 h-4 border border-border bg-white shrink-0" title="Background Color">
+                            <div className="relative w-4 h-4 border border-border bg-white shrink-0" title={t('backgroundColor')}>
                                 <input
                                     type="color"
                                     value={item.backgroundColor || '#ffffff'}
@@ -124,9 +126,9 @@ export const AnnotationsList = React.memo(({
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onUpdateBgColor(item.id, null); }}
                                     className="text-[8px] text-muted-foreground hover:text-primary font-mono"
-                                    title="Remove background"
+                                    title={t('removeBackground')}
                                 >
-                                    CLR
+                                    {t('clear')}
                                 </button>
                             )}
                         </div>

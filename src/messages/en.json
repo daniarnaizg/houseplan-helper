@@ -1,0 +1,162 @@
+{
+  "common": {
+    "apply": "Apply",
+    "cancel": "Cancel",
+    "create": "Create",
+    "delete": "Delete",
+    "save": "Save",
+    "close": "Close",
+    "loading": "Loading..."
+  },
+  "app": {
+    "title": "HousePlan Helper",
+    "description": "Interactive house plan measurement tool"
+  },
+  "fileUpload": {
+    "title": "HousePlan **Helper**",
+    "subtitle": "INITIALIZE PROJECT > UPLOAD BLUEPRINT > CALIBRATE SCALE",
+    "uploadSource": "UPLOAD_SOURCE_FILE",
+    "dropHere": "DROP_FILE_HERE",
+    "supportedFormats": "Supported Formats: PDF, JPG, PNG",
+    "systemReady": "SYSTEM_READY",
+    "waitingForInput": "WAITING_FOR_INPUT..."
+  },
+  "pdfProcessor": {
+    "title": "Import PDF",
+    "pageOf": "Page {current} of {total}",
+    "importSelection": "Import Selection",
+    "loadFailed": "Failed to load PDF.",
+    "loading": "Loading PDF Processor..."
+  },
+  "editor": {
+    "projectTools": "PROJECT**TOOLS**",
+    "startCalibration": "Start Calibration",
+    "calibrationRequired": "Calibration Required",
+    "calibrationSet": "Scale Set",
+    "operationMode": "Operation Mode",
+    "layerManagement": "Layer Management",
+    "assetLibrary": "Asset Library",
+    "scaleCalibration": "SCALE_CALIBRATION",
+    "noDataPoints": "NO_DATA_POINTS",
+    "enterDistance": "Enter real-world distance:",
+    "measurementPoints": "Measurement points:",
+    "pixelDistance": "Pixel distance:",
+    "measuredLength": "Measured length:",
+    "calibrate": "CALIBRATE",
+    "clickTwoPoints": "Click two points on the plan to set the scale.",
+    "point1": "Point 1",
+    "point2": "Point 2",
+    "set": "Set",
+    "resetProject": "Reset Project",
+    "importProject": "Import Project",
+    "exportProject": "Export Project",
+    "exportImage": "Export Image",
+    "recalibrating": "Recalibrating...",
+    "actionDraw": "ACTION: Draw reference line on plan.",
+    "actionCalibrate": "ACTION: Calibrate scale to begin.",
+    "precision": "Precision",
+    "recordingZone": "RECORDING_ZONE",
+    "finish": "Finish",
+    "inputDistance": "Input real-world distance for reference line"
+  },
+  "tools": {
+    "pan": "PAN",
+    "ruler": "RULER",
+    "area": "AREA",
+    "text": "TEXT"
+  },
+  "sidebar": {
+    "linear": "Linear",
+    "zones": "Zones",
+    "assets": "Assets",
+    "notes": "Notes",
+    "hideLayer": "Hide Layer",
+    "showLayer": "Show Layer"
+  },
+  "furniture": {
+    "library": "Furniture Library",
+    "search": "Search furniture...",
+    "createCustom": "Create Custom Item",
+    "itemName": "Item name...",
+    "width": "WIDTH ({unit})",
+    "depth": "DEPTH ({unit})",
+    "color": "COLOR",
+    "icon": "ICON",
+    "rotateLeft": "Rotate -90deg",
+    "rotateRight": "Rotate +90deg",
+    "recent": "Recent",
+    "categories": {
+      "bedroom": "Bedroom",
+      "living": "Living Room",
+      "kitchen": "Kitchen/Dining",
+      "office": "Office",
+      "bathroom": "Bathroom",
+      "custom": "Custom"
+    },
+    "items": {
+      "bed-single": "Single Bed",
+      "bed-double": "Double Bed",
+      "bed-queen": "Queen Bed",
+      "bed-king": "King Bed",
+      "wardrobe": "Wardrobe",
+      "nightstand": "Nightstand",
+      "sofa-2seat": "2-Seat Sofa",
+      "sofa-3seat": "3-Seat Sofa",
+      "armchair": "Armchair",
+      "coffee-table": "Coffee Table",
+      "tv-stand": "TV Stand",
+      "dining-table-4": "Dining Table (4)",
+      "dining-table-6": "Dining Table (6)",
+      "dining-chair": "Dining Chair",
+      "fridge": "Refrigerator",
+      "stove": "Stove/Oven",
+      "desk-small": "Small Desk",
+      "desk-large": "Large Desk",
+      "office-chair": "Office Chair",
+      "bookshelf": "Bookshelf",
+      "toilet": "Toilet",
+      "bathtub": "Bathtub",
+      "shower": "Shower",
+      "sink-bathroom": "Bathroom Sink",
+      "custom": "Custom"
+    }
+  },
+  "annotations": {
+    "size": "Size:",
+    "enterText": "Enter text...",
+    "clear": "CLR",
+    "textColor": "Text Color",
+    "backgroundColor": "Background Color",
+    "removeBackground": "Remove background"
+  },
+  "measurements": {
+    "width": "W:",
+    "depth": "D:",
+    "rotation": "R:",
+    "area": "Area:",
+    "total": "Total:"
+  },
+  "toast": {
+    "calibrateFirst": "Please calibrate the plan first!",
+    "projectImported": "Project imported successfully!",
+    "invalidProject": "Invalid project file.",
+    "contentNotFound": "Could not find plan content.",
+    "exportFailed": "Export failed. Please try resetting zoom/pan before exporting."
+  },
+  "units": {
+    "meters": "m",
+    "centimeters": "cm",
+    "feet": "ft",
+    "inches": "in",
+    "degrees": "deg",
+    "pixels": "px",
+    "squareMeters": "m²",
+    "squareFeet": "ft²"
+  },
+  "settings": {
+    "language": "Language",
+    "units": "Measurement Units",
+    "metric": "Metric (m, cm)",
+    "imperial": "Imperial (ft, in)"
+  }
+}

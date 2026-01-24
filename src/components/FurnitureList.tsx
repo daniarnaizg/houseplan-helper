@@ -2,6 +2,7 @@ import React from 'react';
 import { FurnitureItem } from './types';
 import { cn } from '@/lib/utils';
 import { X, RotateCcw, RotateCw } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface FurnitureListProps {
   items: FurnitureItem[];
@@ -28,6 +29,9 @@ export const FurnitureList = React.memo(({
   hoveredId,
   onHover
 }: FurnitureListProps) => {
+  const t = useTranslations('furniture');
+  const tMeasurements = useTranslations('measurements');
+  const tUnits = useTranslations('units');
   return (
       <>
           {items.map(item => (
@@ -50,9 +54,9 @@ export const FurnitureList = React.memo(({
                   </div>
                   <div className="flex justify-between items-center mt-2">
                       <div className="flex gap-2 items-center text-muted-foreground font-mono text-[10px]">
-                          <span>W:</span>
+                          <span>{tMeasurements('width')}</span>
                           <input type="number" step="0.1" value={item.width} onChange={(e) => onUpdateDim(item.id, 'width', parseFloat(e.target.value))} className="w-10 bg-white border border-border px-1 focus:border-secondary outline-none" />
-                          <span>D:</span>
+                          <span>{tMeasurements('depth')}</span>
                           <input type="number" step="0.1" value={item.depth} onChange={(e) => onUpdateDim(item.id, 'depth', parseFloat(e.target.value))} className="w-10 bg-white border border-border px-1 focus:border-secondary outline-none" />
                       </div>
                       <div className="relative w-3 h-3 border border-border bg-white shrink-0">
@@ -61,11 +65,11 @@ export const FurnitureList = React.memo(({
                       </div>
                   </div>
                   <div className="flex items-center gap-2 mt-2">
-                      <span className="text-muted-foreground font-mono text-[10px]">R:</span>
+                      <span className="text-muted-foreground font-mono text-[10px]">{tMeasurements('rotation')}</span>
                       <button 
                           onClick={(e) => { e.stopPropagation(); onUpdateRotation(item.id, (item.rotation - 90 + 360) % 360); }}
                           className="w-6 h-6 flex items-center justify-center bg-white border border-border hover:border-secondary transition-colors"
-                          title="Rotate -90deg"
+                          title={t('rotateLeft')}
                       >
                           <RotateCcw size={10} />
                       </button>
@@ -79,11 +83,11 @@ export const FurnitureList = React.memo(({
                       <button 
                           onClick={(e) => { e.stopPropagation(); onUpdateRotation(item.id, (item.rotation + 90) % 360); }}
                           className="w-6 h-6 flex items-center justify-center bg-white border border-border hover:border-secondary transition-colors"
-                          title="Rotate +90deg"
+                          title={t('rotateRight')}
                       >
                           <RotateCw size={10} />
                       </button>
-                      <span className="text-[8px] text-muted-foreground font-mono">deg</span>
+                      <span className="text-[8px] text-muted-foreground font-mono">{tUnits('degrees')}</span>
                   </div>
               </div>
           ))}

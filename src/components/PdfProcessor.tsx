@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { Document, Page, pdfjs } from 'react-pdf';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import ReactCrop, { Crop, PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
@@ -20,6 +21,7 @@ interface PdfProcessorProps {
 }
 
 export function PdfProcessor({ file, onComplete, onCancel }: PdfProcessorProps) {
+  const t = useTranslations('pdfProcessor');
   const [numPages, setNumPages] = useState<number>(0);
   const [pageNumber, setPageNumber] = useState<number>(1);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -144,8 +146,8 @@ export function PdfProcessor({ file, onComplete, onCancel }: PdfProcessorProps) 
                     <X size={20} />
                 </button>
                 <div>
-                    <h2 className="font-semibold text-gray-900">Import PDF</h2>
-                    <p className="text-xs text-gray-500">Page {pageNumber} of {numPages}</p>
+                    <h2 className="font-semibold text-gray-900">{t('title')}</h2>
+                    <p className="text-xs text-gray-500">{t('pageOf', { current: pageNumber, total: numPages })}</p>
                 </div>
             </div>
 
@@ -172,7 +174,7 @@ export function PdfProcessor({ file, onComplete, onCancel }: PdfProcessorProps) 
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm font-medium"
             >
                 <Check size={18} />
-                <span>Import Selection</span>
+                <span>{t('importSelection')}</span>
             </button>
         </div>
 
@@ -189,7 +191,7 @@ export function PdfProcessor({ file, onComplete, onCancel }: PdfProcessorProps) 
                     }
                     error={
                         <div className="flex items-center justify-center h-96 w-96 text-red-500">
-                            Failed to load PDF.
+                            {t('loadFailed')}
                         </div>
                     }
                 >
