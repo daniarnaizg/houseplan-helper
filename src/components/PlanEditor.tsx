@@ -4,7 +4,7 @@ import { Ruler, MousePointer2, Calculator, X, ZoomIn, ZoomOut, RotateCcw, Save, 
 import Draggable, { DraggableEvent, DraggableData } from 'react-draggable';
 import { toPng } from 'html-to-image';
 import { cn } from '@/lib/utils';
-import { Mode, Line, Polygon, FurnitureItem, Point, ProjectData } from './types';
+import { Mode, Line, Polygon, FurnitureItem, FurnitureTemplate, Point, ProjectData } from './types';
 import { rotateImage } from '@/lib/imageUtils';
 import { calculatePolygonArea, calculateDistance, pixelsToUnit } from '@/lib/geometry';
 import { DraggableFurnitureItem } from './DraggableFurnitureItem';
@@ -16,6 +16,8 @@ import { AnnotationsList } from './AnnotationsList';
 import { PlanLayer } from './PlanLayer';
 import { AnnotationLayer } from './AnnotationLayer';
 import { ScaleBar } from './ScaleBar';
+import { FurnitureQuickAccess } from './FurnitureQuickAccess';
+import { FurnitureLibraryModal } from './FurnitureLibraryModal';
 import { Annotation } from './types';
 import { usePlanStore } from '@/store/usePlanStore';
 import { useCanvasLogic } from '@/hooks/useCanvasLogic';
@@ -26,14 +28,6 @@ interface PlanEditorProps {
   initialImageSrc?: string;
   onReset: () => void;
 }
-
-const FURNITURE_CATALOG = [
-    { type: 'bed', name: 'Bed', width: 1.5, depth: 2.0, icon: '🛏️', defaultColor: '#3b82f6' },
-    { type: 'sofa', name: 'Sofa', width: 2.4, depth: 1.0, icon: '🛋️', defaultColor: '#6b7280' },
-    { type: 'table', name: 'Table', width: 0.9, depth: 1.2, icon: '🪑', defaultColor: '#854d0e' },
-    { type: 'toilet', name: 'Desk', width: 2.1, depth: 0.67, icon: '🖥️', defaultColor: '#d97706' },
-    { type: 'custom', name: 'Custom', width: 1.0, depth: 1.0, icon: '📦', defaultColor: '#ef4444' },
-];
 
 
 
@@ -101,6 +95,7 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
   const [isAnnotationsVisible, setIsAnnotationsVisible] = useState(true);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   
   // Interaction State
   // Keyboard Nudging and Rotation for Furniture
@@ -235,24 +230,24 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
       }
   };
 
-  const handleAddFurniture = useCallback((item: typeof FURNITURE_CATALOG[0]) => {
+  const handleAddFurniture = useCallback((template: FurnitureTemplate) => {
       if (!scale) {
           alert("Please calibrate the plan first!");
           return;
       }
-      const centerX = imgRef.current ? imgRef.current.width / 2 - (item.width * scale / 2) : 0;
-      const centerY = imgRef.current ? imgRef.current.height / 2 - (item.depth * scale / 2) : 0;
+      const centerX = imgRef.current ? imgRef.current.width / 2 - (template.width * scale / 2) : 0;
+      const centerY = imgRef.current ? imgRef.current.height / 2 - (template.depth * scale / 2) : 0;
 
       const newItem: FurnitureItem = {
-          id: Math.random().toString(36).substr(2, 9),
-          type: item.type as any,
-          name: item.name,
-          width: item.width,
-          depth: item.depth,
+          id: Math.random().toString(36).substring(2, 11),
+          templateId: template.id,
+          name: template.name,
+          width: template.width,
+          depth: template.depth,
           x: centerX,
           y: centerY,
           rotation: 0,
-          color: item.defaultColor 
+          color: template.defaultColor 
       };
       addFurniture(newItem);
       setSelectedFurnitureId(newItem.id);
@@ -441,17 +436,14 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
 
             {scale !== null && (
                 <>
-                    {/* Furniture Tab */}
+                    {/* Furniture Library */}
                     <div className="space-y-2">
                          <p className="technical-text mb-2">Asset Library</p>
-                        <div className="grid grid-cols-2 gap-2">
-                            {FURNITURE_CATALOG.map(item => (
-                                <button key={item.type} onClick={() => handleAddFurniture(item)} className="flex items-center p-2 bg-white hover:bg-muted border border-border hover:border-primary transition-colors gap-3 group">
-                                    <span className="text-xl filter grayscale group-hover:grayscale-0 transition-all">{item.icon}</span>
-                                    <span className="text-xs font-mono font-bold text-primary">{item.name}</span>
-                                </button>
-                            ))}
-                        </div>
+                        <FurnitureQuickAccess
+                            onSelectTemplate={handleAddFurniture}
+                            onOpenLibrary={() => setIsLibraryOpen(true)}
+                            isDisabled={!scale}
+                        />
                     </div>
 
                     {/* Grouped Items List */}
@@ -718,6 +710,13 @@ export function PlanEditor({ file, initialImageSrc, onReset }: PlanEditorProps) 
               </div>
           </div>
       )}
+
+      {/* Furniture Library Modal */}
+      <FurnitureLibraryModal
+          isOpen={isLibraryOpen}
+          onClose={() => setIsLibraryOpen(false)}
+          onSelectTemplate={handleAddFurniture}
+      />
     </div>
   );
 }

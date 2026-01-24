@@ -98,14 +98,44 @@ export const usePlanStore = create<PlanState>()(
             })),
             removeAnnotation: (id) => set((state) => ({ annotations: state.annotations.filter((a) => a.id !== id) })),
 
-            loadProject: (data) => set({
-                lines: data.lines || [],
-                polygons: data.polygons || [],
-                furniture: data.furniture || [],
-                annotations: data.annotations || [],
-                scale: data.scale || null,
-                unit: data.unit || 'm',
-            }),
+            loadProject: (data) => {
+                // Migrate old furniture items that use 'type' instead of 'templateId'
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const migratedFurniture = (data.furniture || []).map((item: any) => {
+                    // Check if item has old 'type' field instead of 'templateId'
+                    if ('type' in item && !('templateId' in item)) {
+                        // Map old types to new template IDs
+                        const typeToTemplateMap: Record<string, string> = {
+                            'bed': 'bed-queen',
+                            'sofa': 'sofa-3seat',
+                            'table': 'dining-table-4',
+                            'toilet': 'desk-small',  // Note: 'toilet' type was actually 'Desk' in old code
+                            'custom': 'custom'
+                        };
+                        return {
+                            id: item.id,
+                            templateId: typeToTemplateMap[item.type] || 'custom',
+                            name: item.name,
+                            width: item.width,
+                            depth: item.depth,
+                            x: item.x,
+                            y: item.y,
+                            rotation: item.rotation,
+                            color: item.color
+                        };
+                    }
+                    return item;
+                });
+
+                set({
+                    lines: data.lines || [],
+                    polygons: data.polygons || [],
+                    furniture: migratedFurniture,
+                    annotations: data.annotations || [],
+                    scale: data.scale || null,
+                    unit: data.unit || 'm',
+                });
+            },
             
             reset: () => set({
                 lines: [],

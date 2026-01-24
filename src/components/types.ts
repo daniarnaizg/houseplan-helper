@@ -24,9 +24,21 @@ export interface Polygon {
   color: string;
 }
 
+// Furniture template for the library
+export interface FurnitureTemplate {
+  id: string;
+  name: string;
+  width: number;        // meters
+  depth: number;        // meters
+  icon: string;         // emoji or icon identifier
+  defaultColor: string;
+  category: string;     // 'bedroom', 'living', 'kitchen', 'office', 'bathroom', 'custom'
+  isBuiltIn: boolean;   // true for default items, false for user-created
+}
+
 export interface FurnitureItem {
   id: string;
-  type: 'bed' | 'sofa' | 'table' | 'toilet' | 'custom';
+  templateId: string;     // Reference to template instead of hardcoded type
   name: string;
   width: number; // Real world width in meters
   depth: number; // Real world depth in meters
