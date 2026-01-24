@@ -2,11 +2,13 @@
 
 ## Overview
 
-Allow users to create, save, and reuse custom furniture items with custom names, dimensions, colors, and icons. The library persists locally using LocalStorage or IndexedDB, making the app adaptable to any use case (kitchens, offices, retail spaces, etc.).
+Allow users to create, save, and reuse custom furniture items with custom names, dimensions, colors, and icons. The library persists locally using LocalStorage, making the app adaptable to any use case (kitchens, offices, retail spaces, etc.).
+
+**UI Approach:** Hybrid design with quick-access recent items in the sidebar and a full categorized library accessible via modal.
 
 ## Priority: Medium-High
-## Complexity: 3/5
-## Estimated Dev Time: 3-4 days
+## Complexity: 3.5/5
+## Estimated Dev Time: 4-5 days
 
 ---
 
@@ -14,7 +16,7 @@ Allow users to create, save, and reuse custom furniture items with custom names,
 
 ### Existing Furniture System
 
-**Furniture Catalog** (`src/components/PlanEditor.tsx:26-32`):
+**Furniture Catalog** (`src/components/PlanEditor.tsx:30-36`):
 ```typescript
 const FURNITURE_CATALOG = [
     { type: 'bed', name: 'Bed', width: 1.5, depth: 2.0, icon: '🛏️', defaultColor: '#3b82f6' },
@@ -45,6 +47,32 @@ export interface FurnitureItem {
 2. `type` field uses string union - not extensible
 3. No persistence of custom furniture templates
 4. "Custom" is just a 1x1m placeholder
+
+---
+
+## Architecture Decision
+
+### Hybrid UI Approach
+
+Based on review discussion, we're implementing a **hybrid UI**:
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Recent Items | Sidebar | Quick access to 5 most recently used templates |
+| "Open Library" button | Sidebar | Opens full library modal |
+| Full Library Modal | Modal/Dialog | Browse all categories, search, create custom items |
+
+**Rationale:**
+- Keeps sidebar uncluttered (currently 320px wide)
+- Recent items provide fast access for common workflows
+- Modal provides space for full library browsing and custom item creation
+
+### Orphaned Items Handling
+
+If a user deletes a custom template that's already placed in a project:
+- The placed item **keeps its templateId** (orphaned reference)
+- Item still renders correctly (has all needed data: dimensions, color, name)
+- Simply won't appear in library for re-use
 
 ---
 
@@ -132,25 +160,31 @@ const BUILT_IN_TEMPLATES: FurnitureTemplate[] = [
     { id: 'custom', name: 'Custom', width: 1.0, depth: 1.0, icon: '📦', defaultColor: '#ef4444', category: 'custom', isBuiltIn: true },
 ];
 
+const MAX_RECENT_ITEMS = 5;
+
 interface FurnitureLibraryState {
     customTemplates: FurnitureTemplate[];
+    recentTemplateIds: string[];  // Last 5 used template IDs
     
     // Actions
     addTemplate: (template: Omit<FurnitureTemplate, 'id' | 'isBuiltIn'>) => void;
     updateTemplate: (id: string, updates: Partial<FurnitureTemplate>) => void;
     removeTemplate: (id: string) => void;
     duplicateTemplate: (id: string) => void;
+    addToRecent: (templateId: string) => void;
     
     // Getters
     getAllTemplates: () => FurnitureTemplate[];
     getTemplateById: (id: string) => FurnitureTemplate | undefined;
     getTemplatesByCategory: (category: string) => FurnitureTemplate[];
+    getRecentTemplates: () => FurnitureTemplate[];
 }
 
 export const useFurnitureLibraryStore = create<FurnitureLibraryState>()(
     persist(
         (set, get) => ({
             customTemplates: [],
+            recentTemplateIds: [],
 
             addTemplate: (template) => {
                 const newTemplate: FurnitureTemplate = {
@@ -173,7 +207,9 @@ export const useFurnitureLibraryStore = create<FurnitureLibraryState>()(
 
             removeTemplate: (id) => {
                 set((state) => ({
-                    customTemplates: state.customTemplates.filter((t) => t.id !== id)
+                    customTemplates: state.customTemplates.filter((t) => t.id !== id),
+                    // Also remove from recent if present
+                    recentTemplateIds: state.recentTemplateIds.filter((rid) => rid !== id)
                 }));
             },
 
@@ -191,6 +227,15 @@ export const useFurnitureLibraryStore = create<FurnitureLibraryState>()(
                 }
             },
 
+            addToRecent: (templateId) => {
+                set((state) => {
+                    // Remove if already exists, then add to front
+                    const filtered = state.recentTemplateIds.filter((id) => id !== templateId);
+                    const updated = [templateId, ...filtered].slice(0, MAX_RECENT_ITEMS);
+                    return { recentTemplateIds: updated };
+                });
+            },
+
             getAllTemplates: () => {
                 return [...BUILT_IN_TEMPLATES, ...get().customTemplates];
             },
@@ -201,6 +246,14 @@ export const useFurnitureLibraryStore = create<FurnitureLibraryState>()(
 
             getTemplatesByCategory: (category) => {
                 return get().getAllTemplates().filter((t) => t.category === category);
+            },
+
+            getRecentTemplates: () => {
+                const { recentTemplateIds } = get();
+                const allTemplates = get().getAllTemplates();
+                return recentTemplateIds
+                    .map((id) => allTemplates.find((t) => t.id === id))
+                    .filter((t): t is FurnitureTemplate => t !== undefined);
             },
         }),
         {
@@ -226,41 +279,55 @@ export const FURNITURE_CATEGORIES = [
 
 ---
 
-### Task 3: Create Furniture Library Panel Component
+### Task 3: Create Furniture Library Modal
 
-**File:** `src/components/FurnitureLibraryPanel.tsx` (new file)
+**File:** `src/components/FurnitureLibraryModal.tsx` (new file)
+
+Full library browser with:
+- Category tabs/accordion
+- Search functionality
+- Custom item creation form
+- Edit/duplicate/delete for custom items
 
 ```typescript
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FurnitureTemplate } from './types';
 import { useFurnitureLibraryStore, FURNITURE_CATEGORIES } from '@/store/useFurnitureLibraryStore';
 import { cn } from '@/lib/utils';
-import { Plus, Trash2, Copy, ChevronDown, ChevronRight, Edit2, Check, X } from 'lucide-react';
+import { X, Plus, Trash2, Copy, Search, ChevronDown, ChevronRight } from 'lucide-react';
 
-interface FurnitureLibraryPanelProps {
+interface FurnitureLibraryModalProps {
+    isOpen: boolean;
+    onClose: () => void;
     onSelectTemplate: (template: FurnitureTemplate) => void;
-    isDisabled: boolean;
 }
 
-export const FurnitureLibraryPanel: React.FC<FurnitureLibraryPanelProps> = ({
-    onSelectTemplate,
-    isDisabled
+export const FurnitureLibraryModal: React.FC<FurnitureLibraryModalProps> = ({
+    isOpen,
+    onClose,
+    onSelectTemplate
 }) => {
-    const { customTemplates, addTemplate, updateTemplate, removeTemplate, duplicateTemplate, getTemplatesByCategory } = useFurnitureLibraryStore();
+    const { 
+        customTemplates, 
+        addTemplate, 
+        removeTemplate, 
+        duplicateTemplate, 
+        getTemplatesByCategory,
+        addToRecent 
+    } = useFurnitureLibraryStore();
     
+    const [searchQuery, setSearchQuery] = useState('');
     const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
-        bedroom: false,
+        bedroom: true,
         living: false,
         kitchen: false,
         office: false,
         bathroom: false,
         custom: true,
     });
-    
     const [showCreateForm, setShowCreateForm] = useState(false);
-    const [editingId, setEditingId] = useState<string | null>(null);
     
-    // Form state for creating/editing
+    // Form state for creating custom items
     const [formData, setFormData] = useState({
         name: '',
         width: 1.0,
@@ -275,6 +342,12 @@ export const FurnitureLibraryPanel: React.FC<FurnitureLibraryPanelProps> = ({
             ...prev,
             [categoryId]: !prev[categoryId]
         }));
+    };
+
+    const handleSelect = (template: FurnitureTemplate) => {
+        addToRecent(template.id);
+        onSelectTemplate(template);
+        onClose();
     };
 
     const handleCreateTemplate = () => {
@@ -293,206 +366,386 @@ export const FurnitureLibraryPanel: React.FC<FurnitureLibraryPanelProps> = ({
         setShowCreateForm(false);
     };
 
+    // Filter templates by search query
+    const filteredCategories = useMemo(() => {
+        if (!searchQuery.trim()) return null;
+        
+        const query = searchQuery.toLowerCase();
+        const results: FurnitureTemplate[] = [];
+        
+        FURNITURE_CATEGORIES.forEach(cat => {
+            const templates = getTemplatesByCategory(cat.id);
+            templates.forEach(t => {
+                if (t.name.toLowerCase().includes(query)) {
+                    results.push(t);
+                }
+            });
+        });
+        
+        return results;
+    }, [searchQuery, getTemplatesByCategory]);
+
     const EMOJI_OPTIONS = ['📦', '🪑', '🛏️', '🛋️', '🚪', '📺', '🖥️', '💺', '📚', '🪵', '🧊', '🍳', '🚽', '🛁', '🚿', '🚰', '🪴', '💡', '🖼️', '⭐'];
 
-    return (
-        <div className="space-y-2">
-            {/* Create New Button */}
-            <button
-                onClick={() => setShowCreateForm(!showCreateForm)}
-                disabled={isDisabled}
-                className={cn(
-                    "w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold uppercase tracking-wider border-2 transition-all",
-                    showCreateForm
-                        ? "bg-secondary text-white border-secondary"
-                        : "bg-white text-primary border-border hover:border-primary disabled:opacity-50"
-                )}
-            >
-                <Plus size={14} />
-                Create Custom Item
-            </button>
+    if (!isOpen) return null;
 
-            {/* Create Form */}
-            {showCreateForm && (
-                <div className="p-3 bg-muted/50 border border-border space-y-3">
-                    <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                        placeholder="Item name..."
-                        className="w-full px-2 py-1 text-xs font-mono border border-border focus:border-secondary outline-none"
-                    />
-                    
-                    <div className="flex gap-2">
-                        <div className="flex-1">
-                            <label className="text-[9px] text-muted-foreground font-mono">WIDTH (m)</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                min="0.1"
-                                value={formData.width}
-                                onChange={(e) => setFormData(prev => ({ ...prev, width: parseFloat(e.target.value) || 0.1 }))}
-                                className="w-full px-2 py-1 text-xs font-mono border border-border focus:border-secondary outline-none"
-                            />
-                        </div>
-                        <div className="flex-1">
-                            <label className="text-[9px] text-muted-foreground font-mono">DEPTH (m)</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                min="0.1"
-                                value={formData.depth}
-                                onChange={(e) => setFormData(prev => ({ ...prev, depth: parseFloat(e.target.value) || 0.1 }))}
-                                className="w-full px-2 py-1 text-xs font-mono border border-border focus:border-secondary outline-none"
-                            />
-                        </div>
-                    </div>
-                    
-                    <div className="flex gap-2 items-end">
-                        <div className="flex-1">
-                            <label className="text-[9px] text-muted-foreground font-mono">ICON</label>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                                {EMOJI_OPTIONS.slice(0, 10).map(emoji => (
-                                    <button
-                                        key={emoji}
-                                        onClick={() => setFormData(prev => ({ ...prev, icon: emoji }))}
-                                        className={cn(
-                                            "w-6 h-6 flex items-center justify-center text-sm border",
-                                            formData.icon === emoji
-                                                ? "border-secondary bg-secondary/10"
-                                                : "border-border hover:border-primary"
-                                        )}
-                                    >
-                                        {emoji}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                        <div>
-                            <label className="text-[9px] text-muted-foreground font-mono">COLOR</label>
-                            <input
-                                type="color"
-                                value={formData.defaultColor}
-                                onChange={(e) => setFormData(prev => ({ ...prev, defaultColor: e.target.value }))}
-                                className="w-8 h-8 border border-border cursor-pointer"
-                            />
-                        </div>
-                    </div>
-                    
-                    <div className="flex gap-2 justify-end">
-                        <button
-                            onClick={() => setShowCreateForm(false)}
-                            className="px-3 py-1 text-[10px] font-mono text-muted-foreground hover:text-primary"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleCreateTemplate}
-                            disabled={!formData.name.trim()}
-                            className="px-3 py-1 text-[10px] font-mono font-bold bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
-                        >
-                            Create
-                        </button>
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-white w-full max-w-2xl max-h-[80vh] flex flex-col border-2 border-border shadow-[8px_8px_0px_#00000020]">
+                {/* Header */}
+                <div className="flex items-center justify-between p-4 border-b-2 border-border">
+                    <h2 className="text-sm font-bold uppercase tracking-wider">Furniture Library</h2>
+                    <button onClick={onClose} className="p-1 hover:bg-muted">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                {/* Search */}
+                <div className="p-3 border-b border-border">
+                    <div className="relative">
+                        <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search furniture..."
+                            className="w-full pl-8 pr-3 py-2 text-xs font-mono border border-border focus:border-secondary outline-none"
+                        />
                     </div>
                 </div>
-            )}
 
-            {/* Category Lists */}
-            {FURNITURE_CATEGORIES.map(category => {
-                const templates = getTemplatesByCategory(category.id);
-                if (templates.length === 0 && category.id !== 'custom') return null;
-                
-                const isExpanded = expandedCategories[category.id];
-                
-                return (
-                    <div key={category.id} className="border border-border">
-                        <button
-                            onClick={() => toggleCategory(category.id)}
-                            className="w-full flex items-center justify-between p-2 bg-muted/30 hover:bg-muted/50 transition-colors"
-                        >
-                            <div className="flex items-center gap-2">
-                                <span>{category.icon}</span>
-                                <span className="text-[10px] font-mono font-bold uppercase">{category.name}</span>
-                                <span className="text-[9px] text-muted-foreground">({templates.length})</span>
-                            </div>
-                            {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                        </button>
-                        
-                        {isExpanded && (
-                            <div className="p-1 grid grid-cols-2 gap-1">
-                                {templates.map(template => (
-                                    <div
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {/* Search Results */}
+                    {filteredCategories !== null ? (
+                        <div className="space-y-1">
+                            <p className="text-[10px] font-mono text-muted-foreground mb-2">
+                                {filteredCategories.length} results for "{searchQuery}"
+                            </p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {filteredCategories.map(template => (
+                                    <TemplateCard
                                         key={template.id}
-                                        className="group relative"
-                                    >
-                                        <button
-                                            onClick={() => onSelectTemplate(template)}
-                                            disabled={isDisabled}
-                                            className={cn(
-                                                "w-full flex items-center p-2 bg-white hover:bg-muted border border-transparent hover:border-primary transition-all gap-2 text-left disabled:opacity-50 disabled:hover:bg-white disabled:hover:border-transparent"
-                                            )}
-                                        >
-                                            <span className="text-base filter grayscale group-hover:grayscale-0 transition-all">
-                                                {template.icon}
-                                            </span>
-                                            <div className="flex-1 min-w-0">
-                                                <span className="text-[10px] font-mono font-bold text-primary block truncate">
-                                                    {template.name}
-                                                </span>
-                                                <span className="text-[8px] text-muted-foreground font-mono">
-                                                    {template.width}x{template.depth}m
-                                                </span>
-                                            </div>
-                                        </button>
-                                        
-                                        {/* Actions for custom templates */}
-                                        {!template.isBuiltIn && (
-                                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); duplicateTemplate(template.id); }}
-                                                    className="p-1 bg-white border border-border hover:border-primary text-muted-foreground hover:text-primary"
-                                                    title="Duplicate"
-                                                >
-                                                    <Copy size={10} />
-                                                </button>
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); removeTemplate(template.id); }}
-                                                    className="p-1 bg-white border border-border hover:border-red-500 text-muted-foreground hover:text-red-500"
-                                                    title="Delete"
-                                                >
-                                                    <Trash2 size={10} />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
+                                        template={template}
+                                        onSelect={handleSelect}
+                                        onDuplicate={duplicateTemplate}
+                                        onDelete={removeTemplate}
+                                    />
                                 ))}
                             </div>
-                        )}
-                    </div>
-                );
-            })}
+                        </div>
+                    ) : (
+                        /* Category Lists */
+                        FURNITURE_CATEGORIES.map(category => {
+                            const templates = getTemplatesByCategory(category.id);
+                            const isExpanded = expandedCategories[category.id];
+                            
+                            return (
+                                <div key={category.id} className="border border-border">
+                                    <button
+                                        onClick={() => toggleCategory(category.id)}
+                                        className="w-full flex items-center justify-between p-2 bg-muted/30 hover:bg-muted/50 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span>{category.icon}</span>
+                                            <span className="text-[10px] font-mono font-bold uppercase">{category.name}</span>
+                                            <span className="text-[9px] text-muted-foreground">({templates.length})</span>
+                                        </div>
+                                        {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                                    </button>
+                                    
+                                    {isExpanded && (
+                                        <div className="p-2 grid grid-cols-3 gap-2">
+                                            {templates.map(template => (
+                                                <TemplateCard
+                                                    key={template.id}
+                                                    template={template}
+                                                    onSelect={handleSelect}
+                                                    onDuplicate={duplicateTemplate}
+                                                    onDelete={removeTemplate}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+
+                {/* Footer - Create Custom */}
+                <div className="p-3 border-t-2 border-border">
+                    {!showCreateForm ? (
+                        <button
+                            onClick={() => setShowCreateForm(true)}
+                            className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold uppercase tracking-wider bg-white text-primary border-2 border-border hover:border-primary transition-all"
+                        >
+                            <Plus size={14} />
+                            Create Custom Item
+                        </button>
+                    ) : (
+                        <div className="space-y-3">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Item name..."
+                                    className="flex-1 px-2 py-1 text-xs font-mono border border-border focus:border-secondary outline-none"
+                                />
+                                <select
+                                    value={formData.category}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                                    className="px-2 py-1 text-xs font-mono border border-border focus:border-secondary outline-none"
+                                >
+                                    {FURNITURE_CATEGORIES.map(cat => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            
+                            <div className="flex gap-2">
+                                <div className="flex-1">
+                                    <label className="text-[9px] text-muted-foreground font-mono">WIDTH (m)</label>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        min="0.1"
+                                        value={formData.width}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, width: parseFloat(e.target.value) || 0.1 }))}
+                                        className="w-full px-2 py-1 text-xs font-mono border border-border focus:border-secondary outline-none"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-[9px] text-muted-foreground font-mono">DEPTH (m)</label>
+                                    <input
+                                        type="number"
+                                        step="0.1"
+                                        min="0.1"
+                                        value={formData.depth}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, depth: parseFloat(e.target.value) || 0.1 }))}
+                                        className="w-full px-2 py-1 text-xs font-mono border border-border focus:border-secondary outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[9px] text-muted-foreground font-mono">COLOR</label>
+                                    <input
+                                        type="color"
+                                        value={formData.defaultColor}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, defaultColor: e.target.value }))}
+                                        className="w-full h-[26px] border border-border cursor-pointer"
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="text-[9px] text-muted-foreground font-mono">ICON</label>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                    {EMOJI_OPTIONS.map(emoji => (
+                                        <button
+                                            key={emoji}
+                                            onClick={() => setFormData(prev => ({ ...prev, icon: emoji }))}
+                                            className={cn(
+                                                "w-7 h-7 flex items-center justify-center text-sm border",
+                                                formData.icon === emoji
+                                                    ? "border-secondary bg-secondary/10"
+                                                    : "border-border hover:border-primary"
+                                            )}
+                                        >
+                                            {emoji}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={() => setShowCreateForm(false)}
+                                    className="px-3 py-1 text-[10px] font-mono text-muted-foreground hover:text-primary"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleCreateTemplate}
+                                    disabled={!formData.name.trim()}
+                                    className="px-3 py-1 text-[10px] font-mono font-bold bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+                                >
+                                    Create
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
 
-FurnitureLibraryPanel.displayName = 'FurnitureLibraryPanel';
+// Template Card Component
+interface TemplateCardProps {
+    template: FurnitureTemplate;
+    onSelect: (template: FurnitureTemplate) => void;
+    onDuplicate: (id: string) => void;
+    onDelete: (id: string) => void;
+}
+
+const TemplateCard: React.FC<TemplateCardProps> = ({ template, onSelect, onDuplicate, onDelete }) => {
+    return (
+        <div className="group relative">
+            <button
+                onClick={() => onSelect(template)}
+                className="w-full flex items-center p-2 bg-white hover:bg-muted border border-border hover:border-primary transition-all gap-2 text-left"
+            >
+                <span className="text-lg filter grayscale group-hover:grayscale-0 transition-all">
+                    {template.icon}
+                </span>
+                <div className="flex-1 min-w-0">
+                    <span className="text-[10px] font-mono font-bold text-primary block truncate">
+                        {template.name}
+                    </span>
+                    <span className="text-[8px] text-muted-foreground font-mono">
+                        {template.width}x{template.depth}m
+                    </span>
+                </div>
+            </button>
+            
+            {/* Actions for custom templates */}
+            {!template.isBuiltIn && (
+                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onDuplicate(template.id); }}
+                        className="p-1 bg-white border border-border hover:border-primary text-muted-foreground hover:text-primary"
+                        title="Duplicate"
+                    >
+                        <Copy size={10} />
+                    </button>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(template.id); }}
+                        className="p-1 bg-white border border-border hover:border-red-500 text-muted-foreground hover:text-red-500"
+                        title="Delete"
+                    >
+                        <Trash2 size={10} />
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+FurnitureLibraryModal.displayName = 'FurnitureLibraryModal';
 ```
 
 ---
 
-### Task 4: Update PlanEditor to Use Library
+### Task 4: Create Quick Access Panel for Sidebar
+
+**File:** `src/components/FurnitureQuickAccess.tsx` (new file)
+
+Compact sidebar component showing recent items + button to open full library.
+
+```typescript
+import React from 'react';
+import { FurnitureTemplate } from './types';
+import { useFurnitureLibraryStore } from '@/store/useFurnitureLibraryStore';
+import { cn } from '@/lib/utils';
+import { Library } from 'lucide-react';
+
+interface FurnitureQuickAccessProps {
+    onSelectTemplate: (template: FurnitureTemplate) => void;
+    onOpenLibrary: () => void;
+    isDisabled: boolean;
+}
+
+export const FurnitureQuickAccess: React.FC<FurnitureQuickAccessProps> = ({
+    onSelectTemplate,
+    onOpenLibrary,
+    isDisabled
+}) => {
+    const { getRecentTemplates, addToRecent } = useFurnitureLibraryStore();
+    const recentTemplates = getRecentTemplates();
+
+    const handleSelect = (template: FurnitureTemplate) => {
+        addToRecent(template.id);
+        onSelectTemplate(template);
+    };
+
+    return (
+        <div className="space-y-2">
+            {/* Recent Items */}
+            {recentTemplates.length > 0 && (
+                <div className="space-y-1">
+                    <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Recent</p>
+                    <div className="grid grid-cols-2 gap-1">
+                        {recentTemplates.map(template => (
+                            <button
+                                key={template.id}
+                                onClick={() => handleSelect(template)}
+                                disabled={isDisabled}
+                                className={cn(
+                                    "flex items-center p-2 bg-white hover:bg-muted border border-border hover:border-primary transition-colors gap-2 group disabled:opacity-50 disabled:hover:bg-white disabled:hover:border-border"
+                                )}
+                            >
+                                <span className="text-base filter grayscale group-hover:grayscale-0 transition-all">
+                                    {template.icon}
+                                </span>
+                                <div className="flex-1 min-w-0 text-left">
+                                    <span className="text-[10px] font-mono font-bold text-primary block truncate">
+                                        {template.name}
+                                    </span>
+                                    <span className="text-[8px] text-muted-foreground font-mono">
+                                        {template.width}x{template.depth}m
+                                    </span>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Open Library Button */}
+            <button
+                onClick={onOpenLibrary}
+                disabled={isDisabled}
+                className={cn(
+                    "w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-bold uppercase tracking-wider border-2 transition-all",
+                    "bg-white text-primary border-border hover:border-primary hover:bg-muted disabled:opacity-50 disabled:hover:bg-white disabled:hover:border-border"
+                )}
+            >
+                <Library size={14} />
+                {recentTemplates.length > 0 ? 'Browse All Furniture' : 'Open Furniture Library'}
+            </button>
+        </div>
+    );
+};
+
+FurnitureQuickAccess.displayName = 'FurnitureQuickAccess';
+```
+
+---
+
+### Task 5: Update PlanEditor to Use Library
 
 **File:** `src/components/PlanEditor.tsx`
 
-**Replace FURNITURE_CATALOG with library integration:**
+**Changes:**
+
+1. Remove `FURNITURE_CATALOG` constant
+2. Import new components and store
+3. Add modal state
+4. Update `handleAddFurniture` to use templates
+5. Replace Asset Library section with quick access + modal
 
 ```typescript
 // Remove old FURNITURE_CATALOG constant
 
-// Import the library
-import { FurnitureLibraryPanel } from './FurnitureLibraryPanel';
+// Add imports
+import { FurnitureQuickAccess } from './FurnitureQuickAccess';
+import { FurnitureLibraryModal } from './FurnitureLibraryModal';
 import { useFurnitureLibraryStore } from '@/store/useFurnitureLibraryStore';
 import { FurnitureTemplate } from './types';
+
+// Add modal state
+const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
 // Update handleAddFurniture to use templates
 const handleAddFurniture = useCallback((template: FurnitureTemplate) => {
@@ -525,8 +778,9 @@ const handleAddFurniture = useCallback((template: FurnitureTemplate) => {
         {/* Furniture Library */}
         <div className="space-y-2">
             <p className="technical-text mb-2">Asset Library</p>
-            <FurnitureLibraryPanel
+            <FurnitureQuickAccess
                 onSelectTemplate={handleAddFurniture}
+                onOpenLibrary={() => setIsLibraryOpen(true)}
                 isDisabled={!scale}
             />
         </div>
@@ -534,19 +788,13 @@ const handleAddFurniture = useCallback((template: FurnitureTemplate) => {
         {/* ... rest of the sidebar ... */}
     </>
 )}
-```
 
----
-
-### Task 5: Update FurnitureItem Type in Store
-
-**File:** `src/store/usePlanStore.ts`
-
-Update to use `templateId` instead of `type`:
-
-```typescript
-// The FurnitureItem type change propagates automatically if using the updated types.ts
-// No store changes needed beyond what's already there
+// Add modal at the end of component (before closing fragment)
+<FurnitureLibraryModal
+    isOpen={isLibraryOpen}
+    onClose={() => setIsLibraryOpen(false)}
+    onSelectTemplate={handleAddFurniture}
+/>
 ```
 
 ---
@@ -555,7 +803,7 @@ Update to use `templateId` instead of `type`:
 
 **File:** `src/store/usePlanStore.ts`
 
-Add migration logic for old projects:
+Add migration logic for old projects that use `type` instead of `templateId`:
 
 ```typescript
 loadProject: (data) => {
@@ -567,7 +815,7 @@ loadProject: (data) => {
                 'bed': 'bed-queen',
                 'sofa': 'sofa-3seat',
                 'table': 'dining-table-4',
-                'toilet': 'desk-small',  // Yes, 'toilet' was actually 'Desk' in old code
+                'toilet': 'desk-small',  // Note: 'toilet' type was actually 'Desk' in old code
                 'custom': 'custom'
             };
             return {
@@ -582,6 +830,7 @@ loadProject: (data) => {
         lines: data.lines || [],
         polygons: data.polygons || [],
         furniture: migratedFurniture,
+        annotations: data.annotations || [],
         scale: data.scale || null,
         unit: data.unit || 'm',
     });
@@ -597,7 +846,7 @@ loadProject: (data) => {
 **File:** `src/lib/furnitureLibrary.test.ts` (new file)
 
 ```typescript
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { FurnitureTemplate } from '@/components/types';
 
 // Mock template for testing
@@ -662,18 +911,26 @@ describe('furniture library', () => {
         });
     });
 
-    describe('template ID generation', () => {
-        it('should generate unique IDs for custom templates', () => {
-            const ids = new Set<string>();
+    describe('recent items', () => {
+        it('should limit recent items to 5', () => {
+            const MAX_RECENT = 5;
+            const recentIds = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+            const limited = recentIds.slice(0, MAX_RECENT);
             
-            for (let i = 0; i < 100; i++) {
-                const id = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-                ids.add(id);
-            }
+            expect(limited.length).toBe(5);
+            expect(limited).not.toContain('f');
+            expect(limited).not.toContain('g');
+        });
+
+        it('should move re-used item to front', () => {
+            const recentIds = ['a', 'b', 'c', 'd', 'e'];
+            const newId = 'c';
             
-            // All IDs should be unique (set size equals number of iterations)
-            // Note: This might occasionally fail due to timing, but is generally reliable
-            expect(ids.size).toBeGreaterThan(95); // Allow some tolerance
+            const filtered = recentIds.filter(id => id !== newId);
+            const updated = [newId, ...filtered].slice(0, 5);
+            
+            expect(updated[0]).toBe('c');
+            expect(updated.length).toBe(5);
         });
     });
 });
@@ -713,32 +970,48 @@ describe('project migration', () => {
 
 ### Manual Testing Checklist
 
-- [ ] Built-in furniture items appear in categorized lists
-- [ ] Clicking a template adds furniture to canvas (when calibrated)
-- [ ] "Create Custom Item" form opens/closes correctly
-- [ ] Custom item creation with all fields works
-- [ ] Custom items appear in "Custom" category
-- [ ] Custom items can be duplicated
-- [ ] Custom items can be deleted (built-in cannot)
-- [ ] Custom items persist after page reload (LocalStorage)
-- [ ] Old projects with `type` field migrate correctly to `templateId`
-- [ ] Category expand/collapse works correctly
-- [ ] Emoji picker works for icon selection
-- [ ] Color picker works for default color
-- [ ] Items are disabled when plan is not calibrated
+- [ ] **Recent Items**
+  - [ ] First use shows empty recent, only "Open Furniture Library" button
+  - [ ] After placing item, it appears in recent
+  - [ ] Recent items limited to 5
+  - [ ] Re-using item moves it to front of recent
+
+- [ ] **Library Modal**
+  - [ ] Modal opens from sidebar button
+  - [ ] All categories expand/collapse correctly
+  - [ ] Search filters items across all categories
+  - [ ] Clicking item places furniture and closes modal
+
+- [ ] **Custom Items**
+  - [ ] Create form opens in modal footer
+  - [ ] All fields work: name, dimensions, icon, color, category
+  - [ ] Custom items appear in their chosen category
+  - [ ] Custom items can be duplicated
+  - [ ] Custom items can be deleted (built-in cannot)
+  - [ ] Custom items persist after page reload
+
+- [ ] **Migration**
+  - [ ] Old projects with `type` field load correctly
+  - [ ] Furniture items have correct templateId after load
+
+- [ ] **Edge Cases**
+  - [ ] Items disabled when plan not calibrated
+  - [ ] Orphaned items (deleted template) still render
+  - [ ] Empty search shows no results message
 
 ---
 
 ## Files to Create/Modify
 
-| File | Changes |
-|------|---------|
-| `src/components/types.ts` | Add `FurnitureTemplate`, update `FurnitureItem` |
-| `src/store/useFurnitureLibraryStore.ts` | **NEW** - Library store with persistence |
-| `src/components/FurnitureLibraryPanel.tsx` | **NEW** - Library UI component |
-| `src/components/PlanEditor.tsx` | Replace catalog with library panel |
-| `src/store/usePlanStore.ts` | Add migration for old projects |
-| `src/lib/furnitureLibrary.test.ts` | **NEW** - Unit tests |
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/types.ts` | Modify | Add `FurnitureTemplate`, update `FurnitureItem` |
+| `src/store/useFurnitureLibraryStore.ts` | **Create** | Library store with persistence + recent items |
+| `src/components/FurnitureLibraryModal.tsx` | **Create** | Full library modal with categories + create form |
+| `src/components/FurnitureQuickAccess.tsx` | **Create** | Sidebar recent items + open library button |
+| `src/components/PlanEditor.tsx` | Modify | Replace catalog with quick access + modal |
+| `src/store/usePlanStore.ts` | Modify | Add migration for old projects |
+| `src/lib/furnitureLibrary.test.ts` | **Create** | Unit tests |
 
 ---
 
@@ -758,7 +1031,8 @@ describe('project migration', () => {
         "category": "custom",
         "isBuiltIn": false
       }
-    ]
+    ],
+    "recentTemplateIds": ["bed-queen", "custom-1234567890-abc12", "sofa-3seat"]
   },
   "version": 1
 }
@@ -770,12 +1044,16 @@ describe('project migration', () => {
 
 ## Acceptance Criteria
 
-- [ ] User can view categorized built-in furniture library
-- [ ] User can create custom furniture templates
-- [ ] User can set name, dimensions, icon, and color for custom items
+- [ ] User can view recent items in sidebar for quick access
+- [ ] User can open full library modal from sidebar
+- [ ] Library modal shows categorized built-in furniture
+- [ ] User can search furniture by name
+- [ ] User can create custom furniture templates in modal
+- [ ] User can set name, dimensions, icon, color, and category for custom items
 - [ ] Custom templates persist in LocalStorage across sessions
 - [ ] User can duplicate and delete custom templates
 - [ ] Built-in templates cannot be deleted
-- [ ] Old projects with `type` field migrate automatically
+- [ ] Old projects with `type` field migrate automatically to `templateId`
 - [ ] Placing furniture from library works as before
+- [ ] Orphaned items (template deleted) still render correctly
 - [ ] UI follows existing app design patterns
